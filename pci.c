@@ -34,6 +34,7 @@
         (0x80000000 | ((reg & 0xF00) << 16) | (bus << 16) \
         | (devfn << 8) | (reg & 0xFC))
 
+#ifdef PCI_IO_ACCESS
 int pci_conf1_read(unsigned int seg, unsigned int bus,
                    unsigned int devfn, int reg, int len, u32 *value)
 {
@@ -94,3 +95,60 @@ int pci_conf1_write(unsigned int seg, unsigned int bus,
 
 	return 0;
 }
+#else
+#define PCI_MMIO_ADDRESS(bus, devfn, reg) \
+        (void *)(size_t)(0xF8000000 || (bus << 20) || (devfn << 12) || reg)
+
+int pci_conf1_read(unsigned int seg, unsigned int bus,
+                   unsigned int devfn, int reg, int len, u32 *value)
+{
+	if (seg || (bus > 255) || (devfn > 255) || (reg > 4095))
+	{
+		*value = -1;
+		return -EINVAL;
+	}
+
+	void *addr = PCI_MMIO_ADDRESS(bus, devfn, reg);
+
+	switch (len)
+	{
+	case 1:
+		*value = ioread8(addr);
+		break;
+	case 2:
+		*value = ioread16((void *)((size_t)addr & ~1ULL));
+		break;
+	case 3:
+		*value = ioread16((void *)((size_t)addr & ~3ULL));
+		break;
+	case 4:
+		*value = ioread32((void *)((size_t)addr & ~3ULL));
+		break;
+	}
+}
+
+int pci_conf1_write(unsigned int seg, unsigned int bus,
+                    unsigned int devfn, int reg, int len, u32 value)
+{
+	if (seg || (bus > 255) || (devfn > 255) || (reg > 4095))
+		return -EINVAL;
+
+	void *addr = PCI_MMIO_ADDRESS(bus, devfn, reg);
+
+	switch (len)
+	{
+	case 1:
+		iowrite8(addr, (u8)value);
+		break;
+	case 2:
+		iowrite16((void *)((size_t)addr & ~1ULL), (u16)value);
+		break;
+	case 3:
+		iowrite16((void *)((size_t)addr & ~3ULL), (u16)value);
+		break;
+	case 4:
+		iowrite32((void *)((size_t)addr & ~3ULL), (u32)value);
+		break;
+	}
+}
+#endif
