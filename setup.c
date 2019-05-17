@@ -33,10 +33,16 @@ static __text SHA1_CONTEXT sha1ctx;
 
 void setup2(void);
 
+static void print(char * txt) {
+	while (*txt != '\0') print_char(*txt++);
+	print_char('\r');
+	print_char('\n');
+}
+
 void setup(void *_lz_base)
 {
 	void *dev_table;
-	void **second_stack;
+	void *second_stack;
 	u32 *tb_dev_map;
 	u64 pfn, end_pfn;
 	u32 dev;
@@ -85,7 +91,7 @@ void setup(void *_lz_base)
 	 * landing zone and of course grows down.
 	 */
 	second_stack = lz_base - LZ_SECOND_STAGE_STACK_OFFSET;
-	load_stack(*second_stack);
+	load_stack(second_stack);
 
 	/* Call secondary setup on new stack */
 	setup2();

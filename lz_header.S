@@ -221,8 +221,9 @@ print_char:
 
 .globl load_stack
 load_stack:
+	movq	(%rsp), %rax /* Return address */
 	movq	%rdi, %rsp
-	movq	%rsp, %rbp /* For consistency */
+	pushq	%rax
 	retq
 
 .globl stgi
