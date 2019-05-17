@@ -18,21 +18,7 @@
 
 cp -f lz_header lz_header.elf
 
-objcopy --remove-section .data lz_header
-objcopy --remove-section .data.rel.local lz_header
-objcopy --remove-section .interp lz_header
-objcopy --remove-section .dynsym lz_header
-objcopy --remove-section .dynstr lz_header
-objcopy --remove-section .hash lz_header
-objcopy --remove-section .eh_frame lz_header
-objcopy --remove-section .rela.dyn lz_header
-objcopy --remove-section .dynamic lz_header
-objcopy --remove-section .got.plt lz_header
-objcopy --remove-section .signature lz_header
-objcopy --remove-section .comment lz_header
-objcopy --remove-section .symtab lz_header
-objcopy --remove-section .strtab lz_header
-objcopy --remove-section .shstrtab lz_header
+objcopy -j .lzdata -j .text -j .rodata -j .bss lz_header
 
 # Make flat binary image
 objcopy -O binary --pad-to 0x10000 lz_header lz_header.bin
