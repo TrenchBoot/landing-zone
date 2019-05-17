@@ -122,7 +122,7 @@ void dev_flush_cache(u32 dev)
 	dev_write(dev, DEV_CR, 0, dev_cr);
 
 	/* TODO: extend loop with timeout to prohibit infinite loop */
-	while (dev_cr && DEV_CR_INV_CACHE_MASK)
+	while (dev_cr & DEV_CR_INV_CACHE_MASK)
                 dev_cr = dev_read(dev, DEV_CR, 0);
 }
 
