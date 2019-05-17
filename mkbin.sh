@@ -18,7 +18,7 @@
 
 cp -f lz_header lz_header.elf
 
-objcopy -j .lzdata -j .text -j .rodata -j .bss lz_header
+objcopy -j .text -j .rodata -j .bss lz_header
 
 # Make flat binary image
 objcopy -O binary --pad-to 0x10000 lz_header lz_header.bin
