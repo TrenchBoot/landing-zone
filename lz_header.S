@@ -22,13 +22,12 @@
 #include <defs.h>
 #include <config.h>
 
-/* 64b selectors */
-#define CS_SEL64         0x0008
-#define DS_SEL64         0x0010
-#define CS_SEL32         0x0018
-#define DS_SEL32         0x0020
+/* Selectors, CS and SS compatible with initial state after SKINIT */
+#define CS_SEL32         0x0008
+#define DS_SEL           0x0010
+#define CS_SEL64         0x0018
 
-	.section .lzdata, "aw"
+	.section .text
 
 	.global lz_start
 lz_start:
@@ -49,8 +48,6 @@ lz_header:
 
 lz_first_stack:
 	.fill LZ_FIRST_STAGE_STACK_SIZE, 1, 0
-
-	.section .text
 
 	.code32
 
@@ -75,17 +72,25 @@ _entry:
 	wrmsr
 
 	/* Fixup some addresses for the GDT and long jump */
-	movl	%ebx, %ecx
-	addl	$(gdt_desc64 - _entry + 2), %ecx
-	movl	%ebx, %eax
-	addl	$(gdt_table64 - _entry), %eax
-	movl	%eax, (%ecx)
+	leal	(gdt_desc64 - lz_start + 2)(%ebx), %ebp
+	leal	(gdt_table64 - lz_start)(%ebx), %eax
+	movl	%eax, (%ebp)
 
-	movl	%ebx, %ecx
-	addl	$(.Ljump64 - _entry + 1), %ecx
-	movl	%ebx, %eax
-	addl	$(.Lentry64 - _entry), %eax
-	movl	%eax, (%ecx)
+	leal	(.Ljump64 - lz_start + 1)(%ebx), %ebp
+	leal	(.Lentry64 - lz_start)(%ebx), %eax
+	movl	%eax, (%ebp)
+
+	/* Load GDT */
+	leal	(gdt_desc64 - lz_start)(%ebx), %ebp
+	lgdt	(%ebp)
+
+	/* Load data segment regs */
+	movw	$DS_SEL, %ax
+	movw	%ax, %ds
+	movw	%ax, %es
+	movw	%ax, %fs
+	movw	%ax, %gs
+	movw	%ax, %ss
 
 	/* Zero out all page table pages so there are no surprises */
 	cld /* just in case */
@@ -162,11 +167,7 @@ _entry:
 	movl	%eax, %cr0
 	jmp	1f
 1:
-	/* Now in IA-32e compatibility mode */
-
-	/* Setup GDT and ljmp to 64b mode */
-	addl	$(gdt_desc64 - _entry), %ebx
-	lgdt	(%ebx)
+	/* Now in IA-32e compatibility mode, ljmp to 64b mode */
 
 .Ljump64:
 	.byte	0xea       /* far jmp op */
@@ -177,7 +178,7 @@ _entry:
 
 .Lentry64:
 	/* Load data segment regs */
-	movw	$DS_SEL64, %ax
+	movw	$DS_SEL, %ax
 	movw	%ax, %ds
 	movw	%ax, %es
 	movw	%ax, %fs
@@ -244,7 +245,7 @@ lz_exit:
 	/* Setup target to ret to compat mode */
 	movq	%rdx, %rdi
 	addq	$LZ_DATA_SECTION_SIZE, %rdi
-	addq	$(.Lentry_compat - _entry), %rdi
+	addq	$(.Lentry_compat - lz_start), %rdi
 	xorq	%rcx, %rcx
 	movl	%edi, %ecx
 
@@ -258,12 +259,12 @@ lz_exit:
 .Lentry_compat:
 	/* Now in IA-32e compatibility mode, next stop is protected mode */
 	/* Load 32b data segment in the segment regs */
-	movw	$DS_SEL32, %ax
+	movw	$DS_SEL, %ax
 	movw	%ax, %ds
 	movw	%ax, %es
 	movw	%ax, %fs
 	movw	%ax, %gs
-	movw %ax, %ss
+	movw	%ax, %ss
 
 	/* Turn paging off - we are identity mapped so we will survive */
 	movl	%cr0, %eax
@@ -325,20 +326,6 @@ gdt_desc64_end:
 gdt_table64:
 	/* Null Segment */
 	.quad	0x0000000000000000
-	/* 64b Code Segment */
-	.word	0x0000 /* Limit 1 */
-	.word	0x0000 /* Base 1 */
-	.byte	0x00   /* Base 2 */
-	.byte	0x9a   /* P=1 DPL=0 S=1 Type=1010 C=0 R=1 A=0 */
-	.byte	0x20   /* G=0 D=0 L=1 AVL=0 Limit 2 */
-	.byte	0x00   /* Base 3 */
-	/* 64b Data Segment */
-	.word	0x0000 /* Limit 1 */
-	.word	0x0000 /* Base 1 */
-	.byte	0x00   /* Base 2 */
-	.byte	0x92   /* P=1 DPL=0 S=1 Type=0010 C=0 W=1 A=0 */
-	.byte	0x00   /* G=0 D=0 L=0 AVL=0 Limit 2 */
-	.byte	0x00   /* Base 3 */
 	/* 32b Code Segment */
 	.word	0xffff /* Limit 1 */
 	.word	0x0000 /* Base 1 */
@@ -346,11 +333,18 @@ gdt_table64:
 	.byte	0x9a   /* P=1 DPL=0 S=1 Type=0010 C=0 W=1 A=0 */
 	.byte	0xcf   /* G=1 D=1 L=0 AVL=0 Limit 2 */
 	.byte	0x00   /* Base 3 */
-	/* 32b Data Segment */
+	/* Data Segment, can be used both in 32b and 64b */
 	.word	0xffff /* Limit 1 */
 	.word	0x0000 /* Base 1 */
 	.byte	0x00   /* Base 2 */
 	.byte	0x92   /* P=1 DPL=0 S=1 Type=0010 C=0 W=1 A=0 */
 	.byte	0xcf   /* G=1 D=1 L=0 AVL=0 Limit 2 */
+	.byte	0x00   /* Base 3 */
+	/* 64b Code Segment */
+	.word	0x0000 /* Limit 1 */
+	.word	0x0000 /* Base 1 */
+	.byte	0x00   /* Base 2 */
+	.byte	0x9a   /* P=1 DPL=0 S=1 Type=1010 C=0 R=1 A=0 */
+	.byte	0x20   /* G=0 D=0 L=1 AVL=0 Limit 2 */
 	.byte	0x00   /* Base 3 */
 gdt_table64_end:
