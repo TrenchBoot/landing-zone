@@ -23,9 +23,9 @@
 #include <config.h>
 
 /* Selectors, CS and SS compatible with initial state after SKINIT */
-#define CS_SEL32         0x0008
-#define DS_SEL           0x0010
-#define CS_SEL64         0x0018
+#define CS_SEL64         0x0008
+#define CS_SEL32         0x0010
+#define DS_SEL           0x0018
 
 	.section .text
 
@@ -244,16 +244,12 @@ lz_exit:
 	movq	%rdx, %rbp
 
 	/* Setup target to ret to compat mode */
-	movq	%rdx, %rdi
-	addq	$LZ_DATA_SECTION_SIZE, %rdi
-	addq	$(.Lentry_compat - lz_start), %rdi
-	xorq	%rcx, %rcx
-	movl	%edi, %ecx
+	lea		.Lentry_compat(%rip), %rcx
 
 	/* Do the far return */
 	pushq	$CS_SEL32
 	pushq	%rcx
-	retf
+	retfq
 
 	.code32
 
@@ -327,6 +323,13 @@ gdt_desc64_end:
 gdt_table64:
 	/* Null Segment */
 	.quad	0x0000000000000000
+	/* 64b Code Segment */
+	.word	0x0000 /* Limit 1 */
+	.word	0x0000 /* Base 1 */
+	.byte	0x00   /* Base 2 */
+	.byte	0x9a   /* P=1 DPL=0 S=1 Type=1010 C=0 R=1 A=0 */
+	.byte	0x20   /* G=0 D=0 L=1 AVL=0 Limit 2 */
+	.byte	0x00   /* Base 3 */
 	/* 32b Code Segment */
 	.word	0xffff /* Limit 1 */
 	.word	0x0000 /* Base 1 */
@@ -340,12 +343,5 @@ gdt_table64:
 	.byte	0x00   /* Base 2 */
 	.byte	0x92   /* P=1 DPL=0 S=1 Type=0010 C=0 W=1 A=0 */
 	.byte	0xcf   /* G=1 D=1 L=0 AVL=0 Limit 2 */
-	.byte	0x00   /* Base 3 */
-	/* 64b Code Segment */
-	.word	0x0000 /* Limit 1 */
-	.word	0x0000 /* Base 1 */
-	.byte	0x00   /* Base 2 */
-	.byte	0x9a   /* P=1 DPL=0 S=1 Type=1010 C=0 R=1 A=0 */
-	.byte	0x20   /* G=0 D=0 L=1 AVL=0 Limit 2 */
 	.byte	0x00   /* Base 3 */
 gdt_table64_end:
