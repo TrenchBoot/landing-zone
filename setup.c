@@ -163,14 +163,15 @@ void setup(void *_lz_base)
 	/* Pointer to dev_table bitmap for DEV protection */
 	dev_table = (u8*)lz_base + LZ_DEV_TABLE_OFFSET;
 
-	pfn = PAGE_PFN(zero_page);
+	pfn = PAGE_PFN(0x1000000 /*zero_page*/);
 	end_pfn = PAGE_PFN(PAGE_DOWN((u8*)lz_base + 0x10000));
 
 	/* TODO: check end_pfn is not ouside of range of DEV map */
 
 	/* build protection bitmap */
-	for (;pfn++; pfn <= end_pfn)
+	for (;pfn <= end_pfn; pfn++) {
 		dev_protect_page(pfn, (u8*)dev_table);
+	}
 
 	dev = dev_locate();
 	dev_load_map(dev, (u32)((u64)dev_table));
@@ -213,10 +214,14 @@ void setup2(void)
 	tpm_request_locality(tpm, 2);
 
 	/* extend TB Loader code segment into PCR17 */
+	print("TPM extending ");
 	data = (u32*)(uintptr_t)*code32_start;
+	print_p(data);
 	size = lz_header->slaunch_loader_size;
 	sha1sum(&sha1ctx, data, size);
+	print("shasum calculated, ");
 	tpm_extend_pcr(tpm, 17, TPM_HASH_ALG_SHA1, &sha1ctx.buf[0]);
+	print("PCR extended\n");
 
 	tpm_relinquish_locality(tpm);
 	free_tpm(tpm);
