@@ -48,6 +48,7 @@
 #define BP_CODE32_START  0x214
 #define BP_CMD_LINE_PTR  0x228
 #define BP_CMDLINE_SIZE  0x238
+#define BP_MLE_HEADER    0x268
 
 /* CRs */
 #define CR0_PE  0x00000001 /* Protected mode Enable */

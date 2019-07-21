@@ -198,12 +198,20 @@ void setup(void *_lz_base)
 void setup2(void)
 {
 	u32 *code32_start;
+	u32 *slaunch_header_offset;
+	u32 *sl_stub_entry_offset;
 	u32 *data, size;
 	void *pm_kernel_entry;
 	struct tpm *tpm;
 
 	code32_start = (u32*)((u8*)zero_page + BP_CODE32_START);
-	pm_kernel_entry = (void*)((u64)(*code32_start));
+	slaunch_header_offset = (u32*)((u8*)zero_page + BP_MLE_HEADER);
+	sl_stub_entry_offset = (void*)((u64)(*code32_start)+(*slaunch_header_offset)+24);
+
+	print("sl_stub_entry_offset:\n");
+	hexdump(sl_stub_entry_offset, 0x100);
+
+	pm_kernel_entry = (void*)((u64)(*code32_start)+(*sl_stub_entry_offset));
 
 	/*
 	 * TODO Note these functions can fail but there is no clear way to
