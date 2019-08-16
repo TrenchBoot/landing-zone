@@ -38,14 +38,10 @@
     .type name, @object; \
     .size name, . - name
 
-#define ENTRY(name)  \
-	.globl name; \
-	name:
+#define ENDFUNC(name)      \
+    .type name, @function; \
+    .size name, . - name
 
-#define ENTRY_ALIGN(name) \
-	.globl name;      \
-	.align 16,0x90;   \
-	name:
 #endif
 
 #define __packed        __attribute__ ((packed))

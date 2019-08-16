@@ -32,6 +32,7 @@
 sl_header:
 	.word	_entry /* SL header LZ offset to code start */
 	.word	0xffff /* SL header LZ total length */
+ENDDATA(sl_header)
 
 GLOBAL(lz_header) /* The LZ header setup by the bootloader */
 	.long	0x8e26f178 /* UUID */
@@ -46,11 +47,11 @@ ENDDATA(lz_header)
 
 lz_first_stack:
 	.fill LZ_FIRST_STAGE_STACK_SIZE, 1, 0
+ENDDATA(lz_first_stack)
 
 	.code32
 
-.globl _entry
-_entry:
+GLOBAL(_entry)
 	/*
 	 * Per the spec:
 	 * %eax	   - Beginning of LZ containing the SL header
@@ -130,9 +131,9 @@ _entry:
 	/* End of the line, we should never return */
 	callq	setup
 	ud2
+ENDFUNC(_entry)
 
-.globl lz_exit
-lz_exit:
+GLOBAL(lz_exit)
 	/* RDI has protected mode kernel entry */
 	/* RSI has ZP base (where startup_32 expects it) */
 	/* RDX has LZ base (where Trenchboot expects it) */
@@ -204,6 +205,7 @@ lz_exit:
 	/* Jump to entry target - EBX: startup_32 ESI: ZP base EDX: LZ base */
 	movl	%ebp, %edx
 	jmp	*%ebx
+ENDFUNC(lz_exit)
 
 	.data
 
