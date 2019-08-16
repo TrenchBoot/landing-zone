@@ -149,7 +149,7 @@ typedef struct {
 	void *zero_page;       /* %edx */
 } asm_return_t;
 
-asm_return_t setup(void)
+asm_return_t lz_main(void)
 {
 	u32 *tb_dev_map;
 	u64 pfn, end_pfn;
