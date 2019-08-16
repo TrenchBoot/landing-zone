@@ -47,11 +47,11 @@ ENDDATA(lz_header)
 
 lz_first_stack:
 	.fill LZ_FIRST_STAGE_STACK_SIZE, 1, 0
+ENDDATA(lz_first_stack)
 
 	.code32
 
-.globl _entry
-_entry:
+GLOBAL(_entry)
 	/*
 	 * Per the spec:
 	 * %eax	   - Beginning of LZ containing the SL header
@@ -126,9 +126,9 @@ _entry:
 	.code64
 
 1:
-	callq	setup
+	call	lz_main
 	/*
-	 * setup() is magic.  It returns two pointers by register:
+	 * lz_main() is magic.  It returns two pointers by register:
 	 *
 	 * %eax - protected mode kernel entry
 	 * %edx - ZP base
@@ -201,6 +201,7 @@ _entry:
 	/* Jump to entry target - EBX: startup_32 ESI: ZP base EDX: LZ base */
 	movl	%ebp, %edx
 	jmp	*%ebx
+ENDFUNC(_entry)
 
 	.data
 
