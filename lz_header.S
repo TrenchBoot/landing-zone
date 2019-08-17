@@ -131,29 +131,6 @@ _entry:
 	callq	setup
 	ud2
 
-.globl print_char
-print_char:
-	pushq	%rax
-	pushq	%rdx
-	xorq	%rdx, %rdx
-	movw	$0x3f8, %dx
-	addw	$5, %dx
-1:
-	inb	%dx, %al
-	testb	$0x20, %al
-	jz	1b
-	movw	$0x3f8, %dx
-	movl	%edi, %eax
-	outb	%al, %dx
-	popq	%rdx
-	popq	%rax
-	retq
-
-.globl stgi
-stgi:
-	.byte	0x0f, 0x01, 0xdc
-	retq
-
 .globl lz_exit
 lz_exit:
 	/* RDI has protected mode kernel entry */

@@ -32,6 +32,14 @@ static void *lz_base;
 static void *zero_page;
 static SHA1_CONTEXT sha1ctx;
 
+static void print_char(char c)
+{
+	while ( !(inb(0x3f8 + 5) & 0x20) )
+		;
+
+	outb(0x3f8, c);
+}
+
 static void print(char * txt) {
 	while (*txt != '\0') {
 		if (*txt == '\n')
@@ -131,7 +139,7 @@ void hexdump(const void *memory, size_t length)
 	}
 }
 
-void setup(void *_lz_base)
+void __noreturn setup(void *_lz_base)
 {
 	u32 *tb_dev_map;
 	u64 pfn, end_pfn;
