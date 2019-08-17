@@ -163,14 +163,18 @@ static inline void io_delay(void)
 	asm volatile("outb %%al,%0" : : "dN" (DELAY_PORT));
 }
 
+static inline void stgi(void)
+{
+	asm volatile(".byte 0x0f, 0x01, 0xdc" ::: "memory");
+}
+
 static inline void die(void)
 {
 	asm volatile("ud2");
+	unreachable();
 }
 
 /* Assembly routines */
-void print_char(char c);
-void stgi(void);
 void lz_exit(const void *pm_enrty, const void *zp_base);
 
 #endif /* __BOOT_H__ */
