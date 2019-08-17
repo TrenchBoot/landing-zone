@@ -1,8 +1,7 @@
 CFLAGS = -ffreestanding -fPIE -fno-exceptions -fshort-wchar
 CFLAGS += -Iinclude
 AFLAGS = -D__ASSEMBLY__ $(patsubst -std=gnu%,,$(CFLAGS))
-#LDFLAGS = -nostdlib -Wl,-pie -Wl,--no-seh -Wl,--subsystem,10 -e efi_main
-LDFLAGS = -nostdlib -pie -e _entry -N
+LDFLAGS = -nostdlib -pie -N
 ASM = lz_header.S # must be in order
 SRC = $(wildcard *.c)
 OBJ = $(ASM:.S=.o) # must be first
@@ -14,8 +13,8 @@ all: lz_header.bin
 lz_header.bin: lz_header
 	$(PWD)/mkbin.sh
 
-lz_header: $(OBJ)
-	$(LD) -T lz_header.lds $(LDFLAGS) $^ -o $@
+lz_header: link.lds $(OBJ)
+	$(LD) -T link.lds $(LDFLAGS) $(OBJ) -o $@
 
 %.o: %.c
 	$(CC) $(CFLAGS) -o $@ -c $<
