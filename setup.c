@@ -30,6 +30,14 @@ static u8 __page_data dev_table[3 * PAGE_SIZE];
 
 static SHA1_CONTEXT sha1ctx;
 
+static void print_char(char c)
+{
+	while ( !(inb(0x3f8 + 5) & 0x20) )
+		;
+
+	outb(0x3f8, c);
+}
+
 static void print(char * txt) {
 	while (*txt != '\0') {
 		if (*txt == '\n')

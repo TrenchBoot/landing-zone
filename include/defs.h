@@ -55,6 +55,8 @@
 #define __page_data \
     __attribute__ ((__section__(".page_data"), __aligned__(PAGE_SIZE)))
 
+#define unreachable()   __builtin_unreachable()
+
 /* Boot Params */
 #define BP_TB_DEV_MAP    0x0d8
 #define BP_CODE32_START  0x214
