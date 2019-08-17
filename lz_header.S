@@ -250,12 +250,12 @@ lz_exit:
 	movq	%rdx, %rbp
 
 	/* Setup target to ret to compat mode */
-	lea		.Lentry_compat(%rip), %rcx
+	lea	.Lentry_compat(%rip), %rcx
 
 	/* Do the far return */
 	pushq	$CS_SEL32
 	pushq	%rcx
-	retfq
+	lretq
 
 	.code32
 
