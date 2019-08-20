@@ -27,13 +27,16 @@
 #define CS_SEL32         0x0010
 #define DS_SEL           0x0018
 
+/* Symbol offset relative to lz_start. */
+#define lz_offset(s)  ((s) - lz_start)
+
 	.section .text
 
 	.global lz_start
 lz_start:
 
 sl_header:
-	.word	(_entry - lz_start) /* SL header LZ offset to code start */
+	.word	lz_offset(_entry) /* SL header LZ offset to code start */
 	.word	0xffff /* SL header LZ total length */
 
 lz_header:
@@ -55,14 +58,25 @@ lz_first_stack:
 _entry:
 	/*
 	 * Per the spec:
-	 * EAX - Beginning of LZ containing the SL header.
+	 * %eax	   - Beginning of LZ containing the SL header
+	 * %edx	   - Family/Model/Stepping
+	 * %esp	   - %eax + 64k (End of SLB)
+	 * %cs	   - 32bit Flat, selector 0x08
+	 * %ss	   - 32bit Flat, selector 0x10
+	 * %ds/etc - 16bit Real Mode segments.	Unusable.
 	 *
-	 * Restore the world, get back into longer mode. EBX contains the entry
-	 * point which is our only known location in protected mode. We will
-	 * use it to set things right then validate it later.
+	 * Restore the world, get back into long mode.
+	 *
+	 * The GDT needs relocating before we have a usable %ds, which must be
+	 * done with an %ss-relative write.  Therefore, we store the base
+	 * address in %ebp.
+	 *
+	 * Other bits of code also use %ebx and %esi for the image base.  This
+	 * will be cleaned up in due course.
 	 */
 	movl	%eax, %ebx
 	movl	%eax, %esi
+	movl	%eax, %ebp
 
 	/* Clear R_INIT and DIS_A20M.  */
 	movl	$(IA32_VM_CR), %ecx
@@ -71,18 +85,12 @@ _entry:
 	andl	$(~(1 << VM_CR_DIS_A20M)), %eax
 	wrmsr
 
-	/* Fixup some addresses for the GDT and long jump */
-	leal	(gdt_desc64 - lz_start + 2)(%ebx), %ebp
-	leal	(gdt_table64 - lz_start)(%ebx), %eax
-	movl	%eax, (%ebp)
-
-	leal	(.Ljump64 - lz_start + 1)(%ebx), %ebp
-	leal	(.Lentry64 - lz_start)(%ebx), %eax
-	movl	%eax, (%ebp)
+	/* Relocate GDT.base and 64bit ljmp offset. */
+	addl	%ebp, 2 + lz_offset(gdt_desc64)(%ebp)
+	addl	%ebp, 1 + lz_offset(.Ljump64)(%ebp)
 
 	/* Load GDT */
-	leal	(gdt_desc64 - lz_start)(%ebx), %ebp
-	lgdt	(%ebp)
+	lgdt	lz_offset(gdt_desc64)(%ebp)
 
 	/* Load data segment regs */
 	movw	$DS_SEL, %ax
@@ -170,13 +178,11 @@ _entry:
 	/* Now in IA-32e compatibility mode, ljmp to 64b mode */
 
 .Ljump64:
-	.byte	0xea       /* far jmp op */
-	.long	0x00000000 /* offset (fixed up) */
-	.word	CS_SEL64   /* 64b code segment selector */
+        ljmpl	$CS_SEL64, $lz_offset(1f) /* Offset - dynamically relocated. */
 
 	.code64
 
-.Lentry64:
+1:
 	/* Load data segment regs */
 	movw	$DS_SEL, %ax
 	movw	%ax, %ds
@@ -316,7 +322,7 @@ lz_exit:
 .align 16
 gdt_desc64:
 	.word	gdt_table64_end - gdt_table64 - 1 /* Limit */
-	.quad	0x0000000000000000 /* Base */
+	.quad	lz_offset(gdt_table64) /* Base - dynamically relocated. */
 gdt_desc64_end:
 
 .align 16
