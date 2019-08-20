@@ -60,9 +60,6 @@
 #define LZ_SL_HEADER_OFFSET          (0x0)
 #define LZ_SL_HEADER_SIZE            (0x4)
 
-#define LZ_HEADER_OFFSET             (0x4)
-#define LZ_HEADER_SIZE               (0x2c)
-
 #define LZ_FIRST_STAGE_STACK_START   (0x200)
 #define LZ_FIRST_STAGE_STACK_SIZE    (0x1d0)
 

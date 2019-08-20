@@ -39,7 +39,7 @@ sl_header:
 	.word	lz_offset(_entry) /* SL header LZ offset to code start */
 	.word	0xffff /* SL header LZ total length */
 
-lz_header:
+GLOBAL(lz_header) /* The LZ header setup by the bootloader */
 	.long	0x8e26f178 /* UUID */
 	.long	0xe9119204
 	.long	0x5bc82a83
@@ -48,6 +48,7 @@ lz_header:
 		  /* bzImage (padded out to next page) */
 	.long	0 /* Zero Page address */
 	.fill	0x14 /* MSB Key Hash */
+ENDDATA(lz_header)
 
 lz_first_stack:
 	.fill LZ_FIRST_STAGE_STACK_SIZE, 1, 0

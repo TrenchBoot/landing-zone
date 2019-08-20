@@ -29,6 +29,15 @@
 #define GIGABYTE    0x40000000
 
 #ifdef __ASSEMBLY__
+
+#define GLOBAL(name) \
+    .global name;    \
+    name:
+
+#define ENDDATA(name)    \
+    .type name, @object; \
+    .size name, . - name
+
 #define ENTRY(name)  \
 	.globl name; \
 	name:
