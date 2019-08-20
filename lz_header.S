@@ -94,13 +94,12 @@ _entry:
 	/* Load GDT */
 	lgdt	lz_offset(gdt_desc64)(%ebp)
 
-	/* Load data segment regs */
-	movw	$DS_SEL, %ax
-	movw	%ax, %ds
-	movw	%ax, %es
-	movw	%ax, %fs
-	movw	%ax, %gs
-	movw	%ax, %ss
+	/* Load data segment regs.  %ss is already flat and matches DS_SEL. */
+	movl	$DS_SEL, %eax
+	movl	%eax, %ds
+	movl	%eax, %es
+	movl	%eax, %fs
+	movl	%eax, %gs
 
 	/* Zero out all page table pages so there are no surprises */
 	cld /* just in case */
@@ -185,14 +184,6 @@ _entry:
 	.code64
 
 1:
-	/* Load data segment regs */
-	movw	$DS_SEL, %ax
-	movw	%ax, %ds
-	movw	%ax, %es
-	movw	%ax, %fs
-	movw	%ax, %gs
-	movw	%ax, %ss
-
 	/* Pass the base of the LZ to the setup code */
 	movl	%ebp, %edi
 
@@ -254,13 +245,6 @@ lz_exit:
 
 .Lentry_compat:
 	/* Now in IA-32e compatibility mode, next stop is protected mode */
-	/* Load 32b data segment in the segment regs */
-	movw	$DS_SEL, %ax
-	movw	%ax, %ds
-	movw	%ax, %es
-	movw	%ax, %fs
-	movw	%ax, %gs
-	movw	%ax, %ss
 
 	/* Turn paging off - we are identity mapped so we will survive */
 	movl	%cr0, %eax
