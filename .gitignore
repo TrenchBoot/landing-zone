@@ -1,6 +1,3 @@
 lz_header.bin
 lz_header
-*.dsm
-*.hex
-*.elf
 *.o

@@ -24,8 +24,24 @@ ENTRY(_entry)
 SECTIONS
 {
 	. = 0;
-	.lzdata		: { *(.lzdata) }
-	.text		: { *(.text) }
-	.dynamic	: { *(.dynamic) }
-	.got.plt	: { *(.got.plt) }
+	.text : {
+		*(.text*)
+	}
+	. = ALIGN(64);
+	.rodata : {
+		*(SORT_BY_ALIGNMENT(.rodata*))
+	}
+	.data : {
+		*(SORT_BY_ALIGNMENT(.data*))
+	}
+	.bss : {
+		*(SORT_BY_ALIGNMENT(.bss*))
+	}
+	_end = .;
+
+	/DISCARD/ : {
+		*(.eh_frame*)
+	}
 }
+
+ASSERT(_end <= 0x7000 /* LZ_DEV_TABLE_OFFSET */, "Landing Zone exceeds 64k");

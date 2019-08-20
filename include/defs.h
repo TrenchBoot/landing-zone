@@ -41,7 +41,6 @@
 
 #define __packed        __attribute__ ((packed))
 #define __maybe_unused  __attribute__ ((unused))
-#define __text          __attribute__ ((__section__ (".text#")))
 
 /* Boot Params */
 #define BP_TB_DEV_MAP    0x0d8
