@@ -440,7 +440,7 @@ err:
 #define TPM_CRB_CTRL_RSP_ADDR	0x0068
 #define TPM_CRB_DATA_BUFFER	0x0080
 
-#define REGISTER(l,r)		(((l) << 12) | r)
+#define REGISTER(l,r)		(((l) << 12) | (r))
 
 
 struct tpm_loc_state {
@@ -708,7 +708,6 @@ static void cancel_send(void)
 size_t crb_send(struct tpmbuff *buf)
 {
 	u32 ctrl_start = 1;
-	u8 count = 0;
 
 	if (is_idle())
 		return 0;
@@ -749,7 +748,6 @@ u8 tpm1_pcr_extend(struct tpm *t, struct tpm_digest *d)
 	struct tpm_header *hdr;
 	struct tpm_extend_cmd *cmd;
 	struct tpm_extend_resp *resp;
-	size_t bytes;
 
 	if (! tpmb_reserve(b))
 		goto out;
@@ -905,7 +903,6 @@ int tpm2_extend_pcr(struct tpm *t, u32 pcr,
 {
 	struct tpmbuff *b = t->buff;
 	struct tpm2_cmd cmd;
-	u8 *ptr;
 	u16 size;
 	int ret = 0;
 

@@ -66,7 +66,6 @@ static void print_p(const void * _p) {
 
 static void print_b(char p) {
 	char tmp[4];
-	int i;
 
 	if ((p & 0xf) >= 10)
 		tmp[1] = (p & 0xf) + 'a' - 10;
