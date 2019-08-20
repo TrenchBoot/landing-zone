@@ -88,11 +88,11 @@ _entry:
 	wrmsr
 
 	/* Relocate GDT.base and 64bit ljmp offset. */
-	addl	%ebp, 2 + lz_offset(gdt_desc64)(%ebp)
+	addl	%ebp, 2 + lz_offset(gdtr)(%ebp)
 	addl	%ebp, 1 + lz_offset(.Ljump64)(%ebp)
 
 	/* Load GDT */
-	lgdt	lz_offset(gdt_desc64)(%ebp)
+	lgdt	lz_offset(gdtr)(%ebp)
 
 	/* Load data segment regs.  %ss is already flat and matches DS_SEL. */
 	movl	$DS_SEL, %eax
@@ -295,17 +295,14 @@ lz_exit:
 	movl	%ebp, %edx
 	jmp	*%ebx
 
-/* GDT */
 .align 16
-gdt_desc64:
-	.word	gdt_table64_end - gdt_table64 - 1 /* Limit */
-	.quad	lz_offset(gdt_table64) /* Base - dynamically relocated. */
-gdt_desc64_end:
+gdt:
+	/* Null Segment. Reused for 32bit GDTR */
+	.word   0
+gdtr:
+	.word	.Lgdt_end - gdt - 1 /* Limit */
+	.long	lz_offset(gdt)      /* Base - dynamically relocated. */
 
-.align 16
-gdt_table64:
-	/* Null Segment */
-	.quad	0x0000000000000000
 	/* 32b Code Segment */
 	.word	0xffff /* Limit 1 */
 	.word	0x0000 /* Base 1 */
@@ -327,4 +324,4 @@ gdt_table64:
 	.byte	0x9b   /* P=1 DPL=0 S=1 Type=1010 C=0 R=1 A=1 */
 	.byte	0x20   /* G=0 D=0 L=1 AVL=0 Limit 2 */
 	.byte	0x00   /* Base 3 */
-gdt_table64_end:
+.Lgdt_end:
