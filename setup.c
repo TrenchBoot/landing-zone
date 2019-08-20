@@ -27,7 +27,6 @@
 #include <sha1sum.h>
 
 static void *lz_base;
-static lz_header_t *lz_header;
 static void *zero_page;
 static SHA1_CONTEXT sha1ctx;
 
@@ -151,11 +150,8 @@ void setup(void *_lz_base)
 	/* Store the lz_base for all to use */
 	lz_base = _lz_base;
 
-	/* The LZ header setup by the bootloader */
-	lz_header = (lz_header_t*)((u8*)lz_base + sizeof(sl_header_t));
-
 	/* The Zero Page with the boot_params and legacy header */
-	zero_page = (u8*)(u64)lz_header->zero_page_addr;
+	zero_page = (u8*)(u64)lz_header.zero_page_addr;
 
 	/* DEV CODE */
 
@@ -225,7 +221,7 @@ void setup2(void)
 	print("TPM extending ");
 	data = (u32*)(uintptr_t)*code32_start;
 	print_p(data);
-	size = lz_header->slaunch_loader_size;
+	size = lz_header.slaunch_loader_size;
 	sha1sum(&sha1ctx, data, size);
 	print("shasum calculated, ");
 	tpm_extend_pcr(tpm, 17, TPM_HASH_ALG_SHA1, &sha1ctx.buf[0]);

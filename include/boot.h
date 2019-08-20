@@ -50,6 +50,7 @@ typedef struct __packed lz_header {
 	u32 zero_page_addr;
 	u8  msb_key_hash[20];
 } lz_header_t;
+extern lz_header_t lz_header;
 
 /* Fences */
 #define mb()		asm volatile("mfence" : : : "memory")
