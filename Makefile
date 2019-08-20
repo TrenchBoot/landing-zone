@@ -1,5 +1,5 @@
 CFLAGS = -ffreestanding -fPIE -fno-exceptions -fshort-wchar
-CFLAGS += -Iinclude
+CFLAGS += -Iinclude -Wall
 AFLAGS = -D__ASSEMBLY__ $(patsubst -std=gnu%,,$(CFLAGS))
 LDFLAGS = -nostdlib -pie -N
 ASM = lz_header.S # must be in order

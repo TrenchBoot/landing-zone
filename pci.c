@@ -38,8 +38,6 @@ static int pci_conf1_read(unsigned int seg, unsigned int bus,
                           unsigned int devfn, int reg, int len,
                           u32 *value)
 {
-	unsigned long flags;
-
 	if (seg || (bus > 255) || (devfn > 255) || (reg > 4095))
 	{
 		*value = -1;
@@ -71,8 +69,6 @@ static int pci_conf1_write(unsigned int seg, unsigned int bus,
                            unsigned int devfn, int reg, int len,
                            u32 value)
 {
-	unsigned long flags;
-
 	if (seg || (bus > 255) || (devfn > 255) || (reg > 4095))
 		return -EINVAL;
 
@@ -128,6 +124,7 @@ static int pci_mmio_read(unsigned int seg, unsigned int bus,
 		*value = ioread32((void *)((size_t)addr & ~3ULL));
 		break;
 	}
+	return 0;
 }
 
 static int pci_mmio_write(unsigned int seg, unsigned int bus,
@@ -153,6 +150,7 @@ static int pci_mmio_write(unsigned int seg, unsigned int bus,
 		iowrite32((void *)((size_t)addr & ~3ULL), (u32)value);
 		break;
 	}
+	return 0;
 }
 
 void pci_init(void)
