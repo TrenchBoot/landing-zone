@@ -103,16 +103,16 @@
 #define IA32_DEBUGCTL 0x000001d9
 
 /* EFER bits */
-#define EFER_SCE  0  /* SYSCALL/SYSRET */
-#define EFER_LME  8  /* Long Mode enable */
-#define EFER_LMA  10 /* Long Mode Active (read-only) */
-#define EFER_NXE  11  /* no execute */
-#define EFER_SVME 12   /* SVM extensions enable */
+#define EFER_SCE  (1 <<  0) /* SYSCALL/SYSRET */
+#define EFER_LME  (1 <<  8) /* Long Mode enable */
+#define EFER_LMA  (1 << 10) /* Long Mode Active (read-only) */
+#define EFER_NXE  (1 << 11) /* no execute */
+#define EFER_SVME (1 << 12) /* SVM extensions enable */
 
 /* VM CR MSR bits */
-#define VM_CR_DPD          0
-#define VM_CR_R_INIT       1
-#define VM_CR_DIS_A20M     2
-#define VM_CR_SVME_DISABLE 4
+#define VM_CR_DPD          (1 << 0)
+#define VM_CR_R_INIT       (1 << 1)
+#define VM_CR_DIS_A20M     (1 << 2)
+#define VM_CR_SVME_DISABLE (1 << 4)
 
 #endif /* __DEFS_H__ */

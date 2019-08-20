@@ -75,8 +75,7 @@ GLOBAL(_entry)
 	/* Clear R_INIT and DIS_A20M.  */
 	movl	$(IA32_VM_CR), %ecx
 	rdmsr
-	andl	$(~(1 << VM_CR_R_INIT)), %eax
-	andl	$(~(1 << VM_CR_DIS_A20M)), %eax
+	and	$~(VM_CR_DIS_A20M | VM_CR_R_INIT), %eax
 	wrmsr
 
 	/* Relocate GDT.base, 64bit ljmp offset, and pagetables. */
@@ -96,12 +95,10 @@ GLOBAL(_entry)
 	movl	$DS_SEL, %eax
 	movl	%eax, %ds
 	movl	%eax, %es
-	movl	%eax, %fs
-	movl	%eax, %gs
 
 	/* Restore CR4, PAE must be enabled before IA-32e mode */
 	movl	%cr4, %ecx
-	orl	$(CR4_PAE | CR4_PGE), %ecx
+	or	$CR4_PAE, %ecx
 	movl	%ecx, %cr4
 
 	/* Load PML4 table location into PT base register */
@@ -111,15 +108,14 @@ GLOBAL(_entry)
 	/* Enable IA-32e mode and paging */
 	movl	$(IA32_EFER), %ecx
 	rdmsr
-	orl	$(1 << EFER_LME), %eax
+	or	$EFER_LME >> 8, %ah
 	wrmsr
-	movl	%cr0, %eax
-	orl	$(CR0_PG | CR0_NE | CR0_ET | CR0_MP | CR0_PE), %eax
-	movl	%eax, %cr0
-	jmp	1f
-1:
-	/* Now in IA-32e compatibility mode, ljmp to 64b mode */
 
+	movl	%cr0, %eax
+	or	$CR0_PG | CR0_NE | CR0_TS | CR0_MP, %eax
+	movl	%eax, %cr0
+
+	/* Now in IA-32e compatibility mode, ljmp to 64b mode */
 .Ljump64:
         ljmpl	$CS_SEL64, $1f /* Offset - dynamically relocated. */
 
@@ -141,62 +137,32 @@ GLOBAL(_entry)
 	mov	%edx, %esi
 
 	/* Setup target to ret to compat mode */
-	lea	.Lentry_compat(%rip), %rcx
-
-	/* Do the far return */
+	lea	1f(%rip), %ecx
 	pushq	$CS_SEL32
 	pushq	%rcx
 	lretq
 
 	.code32
-
-.Lentry_compat:
-	/* Now in IA-32e compatibility mode, next stop is protected mode */
+1:	/* Now in IA-32e compatibility mode, next stop is protected mode */
 
 	/* Turn paging off - we are identity mapped so we will survive */
 	movl	%cr0, %eax
-	andl	$(~CR0_PG), %eax
+	and	$~(CR0_PG | CR0_NE | CR0_TS | CR0_MP), %eax
 	movl	%eax, %cr0
 
 	/* Disable IA-32e mode */
 	movl	$(IA32_EFER), %ecx
 	rdmsr
-	andl	$(~(1 << EFER_LME)), %eax
+	and	$~(EFER_LME >> 8), %ah
 	wrmsr
 
-.Lentry32:
 	/* Now in protected mode, make things look like TXT post launch */
-	pushfl
-	popl	%eax
-	movl	$(0x00000002), %eax
-	pushl	%eax
-	popfl /* EFLAGS = 00000002H */
-
-	movl	%cr0, %eax
-	andl	$(~CR0_WP), %eax
-	andl	$(~CR0_AM), %eax
-	movl	%eax, %cr0 /* -PG, -AM, -WP; Others unchanged */
-
 	movl	%cr4, %eax
-	xorl	%eax, %eax
-	andl	$(CR4_SMXE), %eax
-	movl	%eax, %cr4 /* 0x00004000 +SMX -PAE -PGE*/
+	and	$~CR4_PAE, %eax
+	mov	%eax, %cr4
 
-	movl	$(IA32_EFER), %ecx
-	rdmsr
-	andl	$(~(1 << EFER_SCE)), %eax
-	andl	$(~(1 << EFER_NXE)), %eax
-	andl	$(~(1 << EFER_SVME)), %eax
-	wrmsr /* IA32_EFER = 0 */
-
-	movl	%dr7, %eax
-	movl	$(0x00000400), %eax
-	movl	%eax, %dr7 /* DR7 = 00000400H */
-
-	movl	$(IA32_DEBUGCTL), %ecx
-	rdmsr
-	xorw	%ax, %ax /* 16 - 63 reserved */
-	wrmsr /* IA32_DEBUGCTL = 0 */
+	push	$0
+	popf
 
 	/* Jump to entry target - EBX: startup_32 ESI: ZP base EDX: LZ base */
 	movl	%ebp, %edx
