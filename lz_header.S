@@ -27,16 +27,10 @@
 #define DS_SEL           0x0010
 #define CS_SEL64         0x0018
 
-/* Symbol offset relative to lz_start. */
-#define lz_offset(s)  ((s) - lz_start)
-
 	.section .text
 
-	.global lz_start
-lz_start:
-
 sl_header:
-	.word	lz_offset(_entry) /* SL header LZ offset to code start */
+	.word	_entry /* SL header LZ offset to code start */
 	.word	0xffff /* SL header LZ total length */
 
 GLOBAL(lz_header) /* The LZ header setup by the bootloader */
@@ -89,11 +83,11 @@ _entry:
 	wrmsr
 
 	/* Relocate GDT.base and 64bit ljmp offset. */
-	addl	%ebp, 2 + lz_offset(gdtr)(%ebp)
-	addl	%ebp, 1 + lz_offset(.Ljump64)(%ebp)
+	addl	%ebp, 2 + gdtr(%ebp)
+	addl	%ebp, 1 + .Ljump64(%ebp)
 
 	/* Load GDT */
-	lgdt	lz_offset(gdtr)(%ebp)
+	lgdt	gdtr(%ebp)
 
 	/* Load data segment regs.  %ss is already flat and matches DS_SEL. */
 	movl	$DS_SEL, %eax
@@ -180,7 +174,7 @@ _entry:
 	/* Now in IA-32e compatibility mode, ljmp to 64b mode */
 
 .Ljump64:
-        ljmpl	$CS_SEL64, $lz_offset(1f) /* Offset - dynamically relocated. */
+        ljmpl	$CS_SEL64, $1f /* Offset - dynamically relocated. */
 
 	.code64
 
@@ -296,13 +290,16 @@ lz_exit:
 	movl	%ebp, %edx
 	jmp	*%ebx
 
-.align 16
+	.data
+
+.align 8
 gdt:
 	/* Null Segment. Reused for 32bit GDTR */
 	.word   0
 gdtr:
 	.word	.Lgdt_end - gdt - 1 /* Limit */
-	.long	lz_offset(gdt)      /* Base - dynamically relocated. */
+	.long	gdt                 /* Base - dynamically relocated. */
+ENDDATA(gdtr)
 
 	/* 32b Code Segment */
 	.word	0xffff /* Limit 1 */
@@ -326,3 +323,4 @@ gdtr:
 	.byte	0x20   /* G=0 D=0 L=1 AVL=0 Limit 2 */
 	.byte	0x00   /* Base 3 */
 .Lgdt_end:
+ENDDATA(gdt)
