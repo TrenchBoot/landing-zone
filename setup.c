@@ -26,10 +26,10 @@
 #include <tpm.h>
 #include <sha1sum.h>
 
-static __text void *lz_base;
-static __text lz_header_t *lz_header;
-static __text void *zero_page;
-static __text SHA1_CONTEXT sha1ctx;
+static void *lz_base;
+static lz_header_t *lz_header;
+static void *zero_page;
+static SHA1_CONTEXT sha1ctx;
 
 void setup2(void);
 
