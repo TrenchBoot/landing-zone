@@ -71,12 +71,14 @@ _entry:
 	 * done with an %ss-relative write.  Therefore, we store the base
 	 * address in %ebp.
 	 *
-	 * Other bits of code also use %ebx and %esi for the image base.  This
+	 * Other bits of code also use %ebx for the image base.  This
 	 * will be cleaned up in due course.
 	 */
 	movl	%eax, %ebx
-	movl	%eax, %esi
 	movl	%eax, %ebp
+
+	/* Set up the Stage 1 stack. */
+	leal	LZ_FIRST_STAGE_STACK_START(%ebp), %esp
 
 	/* Clear R_INIT and DIS_A20M.  */
 	movl	$(IA32_VM_CR), %ecx
@@ -153,7 +155,7 @@ _entry:
 	jmp	1b
 3:
 	/* Done setting up page tables, lower 4G all identity mapped */
-	movl	%esi, %ebx
+	movl	%ebp, %ebx
 
 	/* Restore CR4, PAE must be enabled before IA-32e mode */
 	movl	%cr4, %ecx
@@ -191,17 +193,8 @@ _entry:
 	movw	%ax, %gs
 	movw	%ax, %ss
 
-	/* ESI still has original EBX, put it back */
-	xorq	%rbx, %rbx
-	movl	%esi, %ebx
-
-	/* Load the stage 1 stack */
-	movq	%rbx, %rax
-	addq	$LZ_FIRST_STAGE_STACK_START, %rax
-	movq	%rax, %rsp
-
 	/* Pass the base of the LZ to the setup code */
-	movq	%rbx, %rdi
+	movl	%ebp, %edi
 
 	/* End of the line, we should never return */
 	callq	setup
