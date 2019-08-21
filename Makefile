@@ -1,11 +1,16 @@
 CFLAGS = -ffreestanding -fPIE -fno-exceptions -fshort-wchar
 CFLAGS += -Iinclude -Wall -g -MMD -MP -Os -mno-sse -mno-mmx
 AFLAGS = -D__ASSEMBLY__ $(patsubst -std=gnu%,,$(CFLAGS))
-LDFLAGS = -nostdlib -no-pie
+LDFLAGS = -nostdlib -no-pie -Wl,--build-id=none
 ASM = lz_header.S # must be in order
 SRC = $(wildcard *.c)
 OBJ = $(ASM:.S=.o) # must be first
 OBJ += $(SRC:.c=.o)
+
+ifeq ($(LTO),y)
+CFLAGS += -flto
+LDFLAGS += -flto
+endif
 
 .PHONY: all
 all: lz_header.bin
@@ -22,7 +27,7 @@ lz_header.bin: lz_header Makefile
 		{ echo "ERROR: LZ UUID missing or misplaced in $@" >&2; false; }
 
 lz_header: link.lds $(OBJ) Makefile
-	$(LD) -T link.lds $(LDFLAGS) $(OBJ) -o $@
+	$(CC) -Wl,-T,link.lds $(LDFLAGS) $(OBJ) -o $@
 
 %.o: %.c Makefile
 	$(CC) $(CFLAGS) -o $@ -c $<
