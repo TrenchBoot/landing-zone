@@ -25,7 +25,7 @@ u32 dev_locate(void)
 	u32 pci_cap_id;
 
 	/* read capabilities pointer */
-        pci_conf1_read(0, DEV_PCI_BUS,
+        pci_read(0, DEV_PCI_BUS,
 			PCI_DEVFN(DEV_PCI_DEVICE,DEV_PCI_FUNCTION),
 			PCI_CAPABILITY_LIST,
 			4, &pci_cap_ptr);
@@ -37,7 +37,7 @@ u32 dev_locate(void)
 
 	while (pci_cap_ptr != 0)
 	{
-		pci_conf1_read(0, DEV_PCI_BUS,
+		pci_read(0, DEV_PCI_BUS,
 				PCI_DEVFN(DEV_PCI_DEVICE,DEV_PCI_FUNCTION),
 				pci_cap_ptr,
 				1, &pci_cap_id);
@@ -45,7 +45,7 @@ u32 dev_locate(void)
 		if (pci_cap_id == PCI_CAPABILITIES_POINTER_ID_DEV)
 			break;
 
-		pci_conf1_read(0, DEV_PCI_BUS,
+		pci_read(0, DEV_PCI_BUS,
 				PCI_DEVFN(DEV_PCI_DEVICE,DEV_PCI_FUNCTION),
 				pci_cap_ptr,
 				1, &pci_cap_ptr);
