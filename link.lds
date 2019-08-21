@@ -54,4 +54,4 @@ SECTIONS
 	}
 }
 
-ASSERT(_end <= 0xA000 /* LZ_PAGE_TABLES_OFFSET */, "Landing Zone exceeds 64k");
+ASSERT(_end <= 0x10000, "Landing Zone exceeds 64k");

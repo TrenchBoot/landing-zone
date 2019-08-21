@@ -90,6 +90,13 @@
 #define CR4_SMXE  0x00004000/* enable SMX */
 #define CR4_PCIDE 0x00020000/* enable PCID */
 
+/* Pagetable bits */
+#define _PAGE_PRESENT  0x001
+#define _PAGE_RW       0x002
+#define _PAGE_AD       0x060
+#define _PAGE_PSE      0x080
+#define L2_PT_SHIFT    21 /* 2Mb */
+
 /* MSRs */
 
 #define IA32_EFER     0xc0000080
