@@ -26,6 +26,8 @@
 #include <tpm.h>
 #include <sha1sum.h>
 
+static u8 __page_data dev_table[3 * PAGE_SIZE];
+
 static void *lz_base;
 static void *zero_page;
 static SHA1_CONTEXT sha1ctx;
@@ -133,7 +135,6 @@ void hexdump(const void *memory, size_t length)
 
 void setup(void *_lz_base)
 {
-	void *dev_table;
 	void *second_stack;
 	u32 *tb_dev_map;
 	u64 pfn, end_pfn;
@@ -155,9 +156,6 @@ void setup(void *_lz_base)
 
 	/* DEV CODE */
 
-	/* Pointer to dev_table bitmap for DEV protection */
-	dev_table = (u8*)lz_base + LZ_DEV_TABLE_OFFSET;
-
 	pfn = PAGE_PFN(0x1000000 /*zero_page*/);
 	end_pfn = PAGE_PFN(PAGE_DOWN((u8*)lz_base + 0x10000));
 
@@ -165,7 +163,7 @@ void setup(void *_lz_base)
 
 	/* build protection bitmap */
 	for (;pfn <= end_pfn; pfn++) {
-		dev_protect_page(pfn, (u8*)dev_table);
+		dev_protect_page(pfn, dev_table);
 	}
 
 	pci_init();

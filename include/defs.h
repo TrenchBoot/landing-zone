@@ -51,6 +51,10 @@
 #define __packed        __attribute__ ((packed))
 #define __maybe_unused  __attribute__ ((unused))
 
+/* Due to the 64k total size limit, group all page aligned data together. */
+#define __page_data \
+    __attribute__ ((__section__(".page_data"), __aligned__(PAGE_SIZE)))
+
 /* Boot Params */
 #define BP_TB_DEV_MAP    0x0d8
 #define BP_CODE32_START  0x214

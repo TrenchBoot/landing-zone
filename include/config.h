@@ -44,9 +44,6 @@
  * |               |
  * |   LZ Code     |
  * |               |
- * | ------------- | EAX + 0x7000
- * |     DEV       | [0x3000b]
- * |   Tables      |
  * | ------------- | EAX + 0xA000
  * |    Page       | [0x6000b]
  * |   Tables      |
@@ -64,9 +61,6 @@
 #define LZ_FIRST_STAGE_STACK_SIZE    (0x1d0)
 
 #define LZ_DATA_SECTION_SIZE         (0x200)
-
-#define LZ_DEV_TABLE_OFFSET          (0x7000)
-#define LZ_DEV_TABLE_SIZE            (0x3000)
 
 #define LZ_PAGE_TABLES_OFFSET        (0xA000)
 #define LZ_PAGE_TABLES_SIZE          (0x6000)

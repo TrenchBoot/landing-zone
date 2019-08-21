@@ -37,6 +37,16 @@ SECTIONS
 	.bss : {
 		*(SORT_BY_ALIGNMENT(.bss*))
 	}
+
+	/*
+	 * Due to the 64k total size constraint, we link all page size/aligned
+	 * data together in a single section, to avoid wasting space in the
+	 * individual data/bss sections.
+	 */
+	.page_data : {
+		*(.page_data)
+	}
+
 	_end = .;
 
 	/DISCARD/ : {
@@ -44,4 +54,4 @@ SECTIONS
 	}
 }
 
-ASSERT(_end <= 0x7000 /* LZ_DEV_TABLE_OFFSET */, "Landing Zone exceeds 64k");
+ASSERT(_end <= 0xA000 /* LZ_PAGE_TABLES_OFFSET */, "Landing Zone exceeds 64k");
