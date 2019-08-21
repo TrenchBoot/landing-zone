@@ -173,6 +173,7 @@ void setup(void *_lz_base)
 		dev_protect_page(pfn, (u8*)dev_table);
 	}
 
+	pci_init();
 	dev = dev_locate();
 	dev_load_map(dev, (u32)((u64)dev_table));
 	dev_flush_cache(dev);

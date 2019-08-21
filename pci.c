@@ -34,9 +34,9 @@
         (0x80000000 | ((reg & 0xF00) << 16) | (bus << 16) \
         | (devfn << 8) | (reg & 0xFC))
 
-#ifdef PCI_IO_ACCESS
-int pci_conf1_read(unsigned int seg, unsigned int bus,
-                   unsigned int devfn, int reg, int len, u32 *value)
+static int pci_conf1_read(unsigned int seg, unsigned int bus,
+                          unsigned int devfn, int reg, int len,
+                          u32 *value)
 {
 	unsigned long flags;
 
@@ -67,8 +67,9 @@ int pci_conf1_read(unsigned int seg, unsigned int bus,
 	return 0;
 }
 
-int pci_conf1_write(unsigned int seg, unsigned int bus,
-                    unsigned int devfn, int reg, int len, u32 value)
+static int pci_conf1_write(unsigned int seg, unsigned int bus,
+                           unsigned int devfn, int reg, int len,
+                           u32 value)
 {
 	unsigned long flags;
 
@@ -95,11 +96,13 @@ int pci_conf1_write(unsigned int seg, unsigned int bus,
 
 	return 0;
 }
-#else
-#define PCI_MMIO_ADDRESS(bus, devfn, reg) \
-        (void *)(size_t)(0xF8000000 || (bus << 20) || (devfn << 12) || reg)
 
-int pci_conf1_read(unsigned int seg, unsigned int bus,
+static void *mmio_base_addr;
+
+#define PCI_MMIO_ADDRESS(bus, devfn, reg) \
+        (void *)((size_t)mmio_base_addr | (bus << 20ULL) | (devfn << 12ULL) | reg)
+
+static int pci_mmio_read(unsigned int seg, unsigned int bus,
                    unsigned int devfn, int reg, int len, u32 *value)
 {
 	if (seg || (bus > 255) || (devfn > 255) || (reg > 4095))
@@ -127,7 +130,7 @@ int pci_conf1_read(unsigned int seg, unsigned int bus,
 	}
 }
 
-int pci_conf1_write(unsigned int seg, unsigned int bus,
+static int pci_mmio_write(unsigned int seg, unsigned int bus,
                     unsigned int devfn, int reg, int len, u32 value)
 {
 	if (seg || (bus > 255) || (devfn > 255) || (reg > 4095))
@@ -151,4 +154,22 @@ int pci_conf1_write(unsigned int seg, unsigned int bus,
 		break;
 	}
 }
-#endif
+
+void pci_init(void)
+{
+	u32 eax, edx;
+
+	asm volatile("rdmsr" : "=a"(eax), "=d"(edx) : "c"(0xc0010058));
+
+	if (eax & 1)	// MMIO configuration space is enabled
+	{
+		mmio_base_addr = (void *)(((u64)edx << 32ULL) | (eax & 0xfff00000));
+		pci_read = &pci_mmio_read;
+		pci_write = &pci_mmio_write;
+	}
+	else
+	{
+		pci_read = &pci_conf1_read;
+		pci_write = &pci_conf1_write;
+	}
+}
