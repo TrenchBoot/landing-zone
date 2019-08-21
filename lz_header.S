@@ -65,11 +65,7 @@ _entry:
 	 * The GDT needs relocating before we have a usable %ds, which must be
 	 * done with an %ss-relative write.  Therefore, we store the base
 	 * address in %ebp.
-	 *
-	 * Other bits of code also use %ebx for the image base.  This
-	 * will be cleaned up in due course.
 	 */
-	movl	%eax, %ebx
 	movl	%eax, %ebp
 
 	/* Set up the Stage 1 stack. */
@@ -82,9 +78,14 @@ _entry:
 	andl	$(~(1 << VM_CR_DIS_A20M)), %eax
 	wrmsr
 
-	/* Relocate GDT.base and 64bit ljmp offset. */
+	/* Relocate GDT.base, 64bit ljmp offset, and pagetables. */
 	addl	%ebp, 2 + gdtr(%ebp)
 	addl	%ebp, 1 + .Ljump64(%ebp)
+	addl	%ebp,        l4_identmap(%ebp) /* L4[0] => L3        */
+	addl	%ebp,        l3_identmap(%ebp) /* L3[0] => First  L2 */
+	addl	%ebp, 0x08 + l3_identmap(%ebp) /* L3[1] => Second L2 */
+	addl	%ebp, 0x10 + l3_identmap(%ebp) /* L3[2] => Third  L2 */
+	addl	%ebp, 0x18 + l3_identmap(%ebp) /* L3[3] => Fourth L2 */
 
 	/* Load GDT */
 	lgdt	gdtr(%ebp)
@@ -96,69 +97,13 @@ _entry:
 	movl	%eax, %fs
 	movl	%eax, %gs
 
-	/* Zero out all page table pages so there are no surprises */
-	cld /* just in case */
-	movl	%ebx, %edi
-	addl	$(LZ_PAGE_TABLES_OFFSET), %edi
-	xorl	%eax, %eax
-	movl	$(LZ_PAGE_TABLES_SIZE/4), %ecx
-	rep stosl
-
-	/* First page is the PML4 table with one PDP entry */
-	movl	%ebx, %eax
-	addl	$(LZ_PAGE_TABLES_OFFSET), %eax
-	movl	%eax, %ecx
-	addl	$PAGE_SIZE, %ecx
-	orl	$0x3, %ecx
-	movl	%ecx, (%eax)
-
-	/* Second page is the PDP table with 4 PD entries */
-	addl	$PAGE_SIZE, %eax
-	movl	%eax, %ecx
-	xorl	%edx, %edx
-1:
-	addl	$PAGE_SIZE, %ecx
-	cmpb	$4, %dl
-	jz	2f
-	orl	$0x3, %ecx
-	movl	%ecx, (%eax)
-	addl	$0x8, %eax
-	incb	%dl
-	jmp	1b
-2:      /* EAX Page 2 + 0x20 */
-
-	/* Next 4 pages are PDs that map all of mem < 4G as 2M pages */
-	addl	$(PAGE_SIZE - 0x20), %eax
-	xorl	%edx, %edx
-	xorl	%ecx, %ecx
-	xorl	%ebx, %ebx
-	addl	$0x83, %ecx
-1:
-	cmpw	$512, %dx
-	jz	2f
-	movl	%ecx, (%eax)
-	addl	$0x8, %eax
-	addl	$0x200000, %ecx
-	incw	%dx
-	jmp	1b
-2:
-	cmpb	$3, %bl
-	jz	3f
-	incb	%bl
-	xorl	%edx, %edx
-	jmp	1b
-3:
-	/* Done setting up page tables, lower 4G all identity mapped */
-	movl	%ebp, %ebx
-
 	/* Restore CR4, PAE must be enabled before IA-32e mode */
 	movl	%cr4, %ecx
 	orl	$(CR4_PAE | CR4_PGE), %ecx
 	movl	%ecx, %cr4
 
 	/* Load PML4 table location into PT base register */
-	movl	%ebx, %eax
-	addl	$LZ_PAGE_TABLES_OFFSET, %eax
+	leal	l4_identmap(%ebp), %eax
 	movl	%eax, %cr3
 
 	/* Enable IA-32e mode and paging */
@@ -324,3 +269,30 @@ ENDDATA(gdtr)
 	.byte	0x00   /* Base 3 */
 .Lgdt_end:
 ENDDATA(gdt)
+
+	.section .page_data, "a", @progbits
+	.align PAGE_SIZE
+
+	/* 64bit Pagetables, identity map of the first 4G of RAM. */
+
+l2_identmap: /* 4x L2 pages, each mapping 1G of RAM.  No relocations. */
+	idx = 0
+	.rept 512 * 4
+	.quad (idx << L2_PT_SHIFT) + _PAGE_PSE + _PAGE_AD + _PAGE_RW + _PAGE_PRESENT
+	idx = idx + 1
+	.endr
+ENDDATA(l2_identmap)
+
+l3_identmap: /* 1x L3 page, mapping the 4x L2 pages.  4 relocations. */
+	idx = 0
+	.rept 4
+	.quad l2_identmap + (idx * PAGE_SIZE) + _PAGE_AD + _PAGE_RW + _PAGE_PRESENT
+	idx = idx + 1
+	.endr
+	.align PAGE_SIZE
+ENDDATA(l3_identmap)
+
+l4_identmap: /* 1x L4 page, mapping the L3 page. 1 relocation. */
+	.quad l3_identmap + _PAGE_AD + _PAGE_RW + _PAGE_PRESENT
+	.align PAGE_SIZE
+ENDDATA(l4_identmap)
