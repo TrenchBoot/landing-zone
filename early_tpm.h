@@ -39,7 +39,7 @@ struct tpm_header {
 	u16 tag;
 	u32 size;
 	u32 code;
-};
+} __attribute__ ((packed));
 
 #define TPM_INTERFACE_ID_0	0x30
 #define TPM_TIS_INTF_ACTIVE	0x00
@@ -276,7 +276,7 @@ struct tpms_auth_resp {
 struct tpm2_cmd {
 	struct tpm_header *header;
 	u32 *handles;		/* TPM_HANDLE		*/
-	struct tpm2b *auth;	/* Authorization Area	*/
+	u8 *auth;		/* Authorization Area	*/
 	u8 *params;		/* Parameters		*/
 	u8 *raw;		/* internal raw buffer	*/
 };
