@@ -15,6 +15,8 @@ endif
 .PHONY: all
 all: lz_header.bin
 
+-include Makefile.local
+
 # Generate a flat binary
 #
 # As a sanity check, look for the LZ UUID at its expected offset in the binary
@@ -35,9 +37,20 @@ lz_header: link.lds $(OBJ) Makefile
 %.o: %.S Makefile
 	$(CC) $(AFLAGS) -c $< -o $@
 
+# Helpers for debugging.  Preprocess and/or compile only.
+%.E: %.c Makefile
+	$(CC) $(CFLAGS) -E $< -o $@
+%.S: %.c Makefile
+	$(CC) $(CFLAGS) -S $< -o $@
+
+.PHONY: cscope
+cscope:
+	find . -name "*.[hcsS]" > cscope.files
+	cscope -b -q -k
+
 .PHONY: clean
 clean:
-	rm -f lz_header.bin lz_header *.d *.o
+	rm -f lz_header.bin lz_header *.d *.o cscope.*
 
 # Compiler-generated header dependencies.  Should be last.
 -include $(OBJ:.o=.d)
