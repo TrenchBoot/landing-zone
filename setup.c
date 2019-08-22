@@ -221,7 +221,8 @@ void setup2(void)
 	print_p(data);
 	size = lz_header.slaunch_loader_size;
 	sha1sum(&sha1ctx, data, size);
-	print("shasum calculated, ");
+	print("shasum calculated:\n");
+	hexdump(sha1ctx.buf, 20);
 	tpm_extend_pcr(tpm, 17, TPM_HASH_ALG_SHA1, &sha1ctx.buf[0]);
 	print("PCR extended\n");
 

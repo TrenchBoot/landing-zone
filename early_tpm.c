@@ -45,9 +45,55 @@ static inline u32 cpu_to_be32(u32 val)
 
 static u8 locality = TPM_NO_LOCALITY;
 
+
+/* Durations derived from Table 15 of the PTP but is purely an artifact of this
+ * implementation */
+
+/* TPM Duration A: 20ms */
+static void duration_a(void)
+{
+	tpm_udelay(20000);
+}
+
+/* TPM Duration B: 750ms */
+static void duration_b(void)
+{
+	tpm_udelay(750000);
+}
+
+/* TPM Duration C: 1000ms */
+static void duration_c(void)
+{
+	tpm_udelay(1000000);
+}
+
+/* Timeouts defined in Table 16 of the PTP */
+
+/* TPM Timeout A: 750ms */
+static void timeout_a(void)
+{
+	tpm_udelay(750000);
+}
+
+/* TPM Timeout B: 2000ms */
+static void timeout_b(void)
+{
+	tpm_udelay(2000000);
+}
+
+/* TPM Timeout C: 200ms */
+static void timeout_c(void)
+{
+	tpm_udelay(200000);
+}
+
+/* TPM Timeout D: 30ms */
+static void timeout_d(void)
+{
+	tpm_udelay(30000);
+}
+
 /*** tpm_buff.c ***/
-
-
 
 #define TPM_CRB_DATA_BUFFER_OFFSET	0x80
 #define TPM_CRB_DATA_BUFFER_SIZE	3966
@@ -296,7 +342,10 @@ size_t tis_send(struct tpmbuff *buf)
 	if (locality > TPM_MAX_LOCALITY)
 		return 0;
 
-	tpm_write8(STS_COMMAND_READY, STS(locality));
+	for (status = 0; (status & STS_COMMAND_READY) == 0; ) {
+		tpm_write8(STS_COMMAND_READY, STS(locality));
+		status = tpm_read8(STS(locality));
+	}
 
 	buf_ptr = buf->head;
 
@@ -369,8 +418,13 @@ size_t tis_recv(struct tpmbuff *buf)
 	/* ensure that there is data available */
 	status = tpm_read8(STS(locality));
 	if ((status & (STS_DATA_AVAIL | STS_VALID))
-			!= (STS_DATA_AVAIL | STS_VALID))
-		goto err;
+			!= (STS_DATA_AVAIL | STS_VALID)) {
+		timeout_d();
+		status = tpm_read8(STS(locality));
+		if ((status & (STS_DATA_AVAIL | STS_VALID))
+				!= (STS_DATA_AVAIL | STS_VALID))
+			goto err;
+	}
 
 	/* read header */
 	hdr = (struct tpm_header *)buf->head;
@@ -511,53 +565,6 @@ struct tpm_crb_intf_id_ext {
 		};
 	};
 } __attribute__ ((packed));
-
-/* Durations derived from Table 15 of the PTP but is purely an artifact of this
- * implementation */
-
-/* TPM Duration A: 20ms */
-static void duration_a(void)
-{
-	tpm_udelay(20);
-}
-
-/* TPM Duration B: 750ms */
-static void duration_b(void)
-{
-	tpm_udelay(750);
-}
-
-/* TPM Duration C: 1000ms */
-static void duration_c(void)
-{
-	tpm_udelay(1000);
-}
-
-/* Timeouts defined in Table 16 of the PTP */
-
-/* TPM Timeout A: 750ms */
-static void timeout_a(void)
-{
-	tpm_udelay(750);
-}
-
-/* TPM Timeout B: 2000ms */
-static void timeout_b(void)
-{
-	tpm_udelay(2000);
-}
-
-/* TPM Timeout C: 200ms */
-static void timeout_c(void)
-{
-	tpm_udelay(200);
-}
-
-/* TPM Timeout D: 30ms */
-static void timeout_d(void)
-{
-	tpm_udelay(30);
-}
 
 static u8 is_idle(void)
 {
@@ -860,7 +867,7 @@ static int tpm2_alloc_cmd(struct tpmbuff *b, struct tpm2_cmd *c, u16 tag,
 static u16 convert_digest_list(struct tpml_digest_values *digests)
 {
 	int i;
-	u16 size = 0;
+	u16 size = sizeof(digests->count);
 	struct tpmt_ha *h = digests->digests;
 
 	for (i=0; i<digests->count; i++) {
@@ -895,6 +902,8 @@ static u16 convert_digest_list(struct tpml_digest_values *digests)
 		}
 	}
 
+	digests->count = cpu_to_be32(digests->count);
+
 	return size;
 }
 
@@ -906,26 +915,27 @@ int tpm2_extend_pcr(struct tpm *t, u32 pcr,
 	u16 size;
 	int ret = 0;
 
+	b = alloc_tpmbuff(t->intf, locality);
+
 	ret = tpm2_alloc_cmd(b, &cmd, TPM_ST_SESSIONS, TPM_CC_PCR_EXTEND);
 	if (ret < 0)
 		return ret;
 
-	cmd.handles = (u32 *)tpmb_put(b, sizeof(u32));
-	*cmd.handles = cpu_to_be32(pcr);
+	cmd.handles = (u32 *)tpmb_put(b, 2*sizeof(u32));
+	cmd.handles[0] = cpu_to_be32(pcr);
 
-	cmd.auth = (struct tpm2b *)tpmb_put(b, tpm2_null_auth_size());
-	cmd.auth->size = tpm2_null_auth(cmd.auth->buffer);
-	cmd.auth->size = cpu_to_be16(cmd.auth->size);
+	cmd.auth = tpmb_put(b, tpm2_null_auth_size());
+	cmd.handles[1] = cpu_to_be32(tpm2_null_auth(cmd.auth));
 
 	size = convert_digest_list(digests);
 	if (size == 0) {
 		tpmb_free(b);
 		return -EINVAL;
 	}
-	cmd.params = (u8 *)tpmb_put(b, size);
+	cmd.params = tpmb_put(b, size);
 	memcpy(cmd.params, digests, size);
 
-	cmd.header->size = cpu_to_be16(tpmb_size(b));
+	cmd.header->size = cpu_to_be32(tpmb_size(b));
 
 	switch (t->intf) {
 	case TPM_DEVNODE:
@@ -942,7 +952,9 @@ int tpm2_extend_pcr(struct tpm *t, u32 pcr,
 		break;
 	}
 
+	/* TODO: check if those functions can be merged into one */
 	tpmb_free(b);
+	free_tpmbuff(b, t->intf);
 
 	return ret;
 }
