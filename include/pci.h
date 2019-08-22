@@ -20,6 +20,8 @@
 #ifndef __PCI_H__
 #define __PCI_H__
 
+#include <boot.h>
+
 /* From include/uapi/linux/pci_regs.h */
 
 #define PCI_CONFIG_ADDR_PORT    (0x0cf8)
@@ -44,15 +46,41 @@
 #define PCI_SLOT(devfn)         (((devfn) >> 3) & 0x1f)
 #define PCI_FUNC(devfn)         ((devfn) & 0x07)
 
+extern u32 mmio_base_addr;
 
-/* From arch/x86/pci/direct.c definitions */
+#define PCI_MMIO_ADDRESS(bus, devfn, reg)			\
+	(void *)((uintptr_t)mmio_base_addr |			\
+		 ((bus) << 20) | ((devfn) << 12) | (reg))
 
-int (*pci_read)(unsigned int seg, unsigned int bus,
-		   unsigned int devfn, int reg, int len, u32 *value);
+static inline u32 pci_read8(u32 bus, u32 devfn, u32 reg)
+{
+	return ioread8(PCI_MMIO_ADDRESS(bus, devfn, reg));
+}
 
+static inline u32 pci_read16(u32 bus, u32 devfn, u32 reg)
+{
+	return ioread16(PCI_MMIO_ADDRESS(bus, devfn, reg));
+}
 
-int (*pci_write)(unsigned int seg, unsigned int bus,
-		    unsigned int devfn, int reg, int len, u32 value);
+static inline u32 pci_read32(u32 bus, u32 devfn, u32 reg)
+{
+	return ioread32(PCI_MMIO_ADDRESS(bus, devfn, reg));
+}
+
+static inline void pci_write8(u32 bus, u32 devfn, u32 reg, u32 val)
+{
+	iowrite8(PCI_MMIO_ADDRESS(bus, devfn, reg), val);
+}
+
+static inline void pci_write16(u32 bus, u32 devfn, u32 reg, u32 val)
+{
+	iowrite16(PCI_MMIO_ADDRESS(bus, devfn, reg), val);
+}
+
+static inline void pci_write32(u32 bus, u32 devfn, u32 reg, u32 val)
+{
+	iowrite32(PCI_MMIO_ADDRESS(bus, devfn, reg), val);
+}
 
 void pci_init(void);
 
