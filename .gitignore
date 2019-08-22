@@ -1,3 +1,4 @@
 lz_header.bin
 lz_header
+*.d
 *.o
