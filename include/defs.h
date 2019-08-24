@@ -95,6 +95,7 @@
 #define _PAGE_RW       0x002
 #define _PAGE_AD       0x060
 #define _PAGE_PSE      0x080
+#define L1_PT_SHIFT    12 /* 4Kb */
 #define L2_PT_SHIFT    21 /* 2Mb */
 
 /* MSRs */
