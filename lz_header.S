@@ -29,9 +29,10 @@
 
 	.section .text
 
-sl_header:
+GLOBAL(sl_header)
 	.word	_entry /* SL header LZ offset to code start */
 	.word	0xffff /* SL header LZ total length */
+ENDDATA(sl_header)
 
 GLOBAL(lz_header) /* The LZ header setup by the bootloader */
 	.long	0x8e26f178 /* UUID */
@@ -125,9 +126,6 @@ _entry:
 	.code64
 
 1:
-	/* Pass the base of the LZ to the setup code */
-	movl	%ebp, %edi
-
 	/* End of the line, we should never return */
 	callq	setup
 	ud2
@@ -159,13 +157,9 @@ stgi:
 lz_exit:
 	/* RDI has protected mode kernel entry */
 	/* RSI has ZP base (where startup_32 expects it) */
-	/* RDX has LZ base (where Trenchboot expects it) */
 
 	/* Save entry target where TXT would pass it */
 	movl	%edi, %ebx
-
-	/* Stash RDX in RBP since r/w MSR will clobber it */
-	movq	%rdx, %rbp
 
 	/* Setup target to ret to compat mode */
 	lea	.Lentry_compat(%rip), %rcx
