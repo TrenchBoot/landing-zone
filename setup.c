@@ -28,7 +28,6 @@
 
 static u8 __page_data dev_table[3 * PAGE_SIZE];
 
-static void *lz_base;
 static SHA1_CONTEXT sha1ctx;
 
 static void print(char * txt) {
@@ -130,7 +129,7 @@ void hexdump(const void *memory, size_t length)
 	}
 }
 
-void setup(void *_lz_base)
+void setup(void)
 {
 	u32 *tb_dev_map;
 	u64 pfn, end_pfn;
@@ -149,9 +148,6 @@ void setup(void *_lz_base)
 	 * "kernel". At the end, trampoline to the PM entry point which will
 	 * include the Secure Launch stub.
 	 */
-
-	/* Store the lz_base for all to use */
-	lz_base = _lz_base;
 
 	/* The Zero Page with the boot_params and legacy header */
 	zero_page = (u8*)(u64)lz_header.zero_page_addr;
@@ -215,7 +211,7 @@ void setup(void *_lz_base)
 	hexdump(zero_page, 0x100);
 	print("lz_base:\n");
 	hexdump(lz_base, 0x100);
-	lz_exit(pm_kernel_entry, zero_page, lz_base);
+	lz_exit(pm_kernel_entry, zero_page);
 
 	/* Should never get here */
 	die();
