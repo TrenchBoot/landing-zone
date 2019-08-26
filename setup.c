@@ -137,7 +137,19 @@ void hexdump(const void *memory, size_t length)
 	}
 }
 
-void setup(void)
+/*
+ * Function return ABI magic:
+ *
+ * By returning a simple object of two pointers, the SYSV ABI splits it across
+ * %rax and %rdx rather than spilling it to the stack.  This is far more
+ * convenient for our asm caller to deal with.
+ */
+typedef struct {
+	void *pm_kernel_entry; /* %eax */
+	void *zero_page;       /* %edx */
+} asm_return_t;
+
+asm_return_t setup(void)
 {
 	u32 *tb_dev_map;
 	u64 pfn, end_pfn;
@@ -219,8 +231,6 @@ void setup(void)
 	hexdump(zero_page, 0x100);
 	print("lz_base:\n");
 	hexdump(lz_base, 0x100);
-	lz_exit(pm_kernel_entry, zero_page);
 
-	/* Should never get here */
-	die();
+	return (asm_return_t){ pm_kernel_entry, zero_page };
 }

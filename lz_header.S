@@ -126,17 +126,19 @@ _entry:
 	.code64
 
 1:
-	/* End of the line, we should never return */
 	callq	setup
-	ud2
-
-.globl lz_exit
-lz_exit:
-	/* RDI has protected mode kernel entry */
-	/* RSI has ZP base (where startup_32 expects it) */
-
-	/* Save entry target where TXT would pass it */
-	movl	%edi, %ebx
+	/*
+	 * setup() is magic.  It returns two pointers by register:
+	 *
+	 * %eax - protected mode kernel entry
+	 * %edx - ZP base
+	 *
+	 * We stash the entry point in %ebx and the Zero Page pointer in %esi.
+	 * This both protects them from clobbering during teardown, and
+	 * matches the ABI for entering Linux.
+	 */
+	mov	%eax, %ebx
+	mov	%edx, %esi
 
 	/* Setup target to ret to compat mode */
 	lea	.Lentry_compat(%rip), %rcx
