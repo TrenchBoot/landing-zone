@@ -174,7 +174,4 @@ static inline void die(void)
 	unreachable();
 }
 
-/* Assembly routines */
-void lz_exit(const void *pm_enrty, const void *zp_base);
-
 #endif /* __BOOT_H__ */
