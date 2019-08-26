@@ -90,13 +90,6 @@ struct tpm_intf_capability {
 	};
 } __attribute__ ((packed));
 
-void tpm_io_delay(void);
-void tpm_udelay(int loops);
-u8 tpm_read8(u32 field);
-void tpm_write8(unsigned char val, u32 field);
-u32 tpm_read32(u32 field);
-void tpm_write32(unsigned int val, u32 field);
-
 /*** tis.h ***/
 
 
@@ -346,10 +339,5 @@ int tpm2_extend_pcr(struct tpm *t, u32 pcr,
 #define TPM_RS_PW (u32)(0x40000009)
 
 /*** tpm2_auth.h ***/
-
-
-u16 tpm2_null_auth_size(void);
-u16 tpm2_null_auth(u8 *b);
-
 
 #endif

@@ -50,6 +50,17 @@ static inline u32 cpu_to_be32(u32 val)
 static u8 locality = TPM_NO_LOCALITY;
 
 
+static void tpm_io_delay(void)
+{
+	io_delay();
+}
+
+static void tpm_udelay(int loops)
+{
+	while (loops--)
+		tpm_io_delay();	/* Approximately 1 us */
+}
+
 /* Durations derived from Table 15 of the PTP but is purely an artifact of this
  * implementation */
 
@@ -209,33 +220,22 @@ void free_tpmbuff(struct tpmbuff *b, enum tpm_hw_intf intf)
 
 /*** tpmio.c ***/
 
-void tpm_io_delay(void)
-{
-	io_delay();
-}
-
-void tpm_udelay(int loops)
-{
-	while (loops--)
-		tpm_io_delay();	/* Approximately 1 us */
-}
-
-u8 tpm_read8(u32 field)
+static u8 tpm_read8(u32 field)
 {
 	return ioread8((void*)(u64)(TPM_MMIO_BASE | field));
 }
 
-void tpm_write8(unsigned char val, u32 field)
+static void tpm_write8(unsigned char val, u32 field)
 {
 	iowrite8((void*)(u64)(TPM_MMIO_BASE | field), val);
 }
 
-u32 tpm_read32(u32 field)
+static u32 tpm_read32(u32 field)
 {
 	return ioread32((void*)(u64)(TPM_MMIO_BASE | field));
 }
 
-void tpm_write32(u32 val, u32 field)
+static void tpm_write32(u32 val, u32 field)
 {
 	iowrite32((void*)(u64)(TPM_MMIO_BASE | field), val);
 }
@@ -811,12 +811,12 @@ out:
 
 #define NULL_AUTH_SIZE 9
 
-u16 tpm2_null_auth_size(void)
+static u16 tpm2_null_auth_size(void)
 {
 	return NULL_AUTH_SIZE;
 }
 
-u16 tpm2_null_auth(u8 *b)
+static u16 tpm2_null_auth(u8 *b)
 {
 	u32 *handle = (u32 *)b;
 
