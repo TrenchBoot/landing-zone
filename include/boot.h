@@ -64,7 +64,7 @@ static inline u8 ioread8(void *addr)
 	u8 val;
 
 	barrier();
-	val = (*(volatile u8 *)(addr));
+	asm volatile("movb %%gs:(%1), %0" : "=q"(val) : "ri"(addr));
 	rmb();
 	return val;
 }
@@ -74,7 +74,7 @@ static inline u16 ioread16(void *addr)
 	u16 val;
 
 	barrier();
-	val = (*(volatile u16 *)(addr));
+	asm volatile("movw %%gs:(%1), %0" : "=r"(val) : "ri"(addr));
 	rmb();
 	return val;
 }
@@ -84,7 +84,7 @@ static inline u32 ioread32(void *addr)
 	u32 val;
 
 	barrier();
-	val = (*(volatile u32 *)(addr));
+	asm volatile("movl %%gs:(%1), %0" : "=r"(val) : "ri"(addr));
 	rmb();
 	return val;
 }
@@ -93,7 +93,7 @@ static inline void iowrite8(void *addr, u8 val)
 {
 
 	wmb();
-	(*(volatile u8 *)(addr)) = val;
+	asm volatile("movb %1, %%gs:(%0)" :: "rm"(addr), "qi"(val));
 	barrier();
 }
 
@@ -101,14 +101,14 @@ static inline void iowrite16(void *addr, u16 val)
 {
 
 	wmb();
-	(*(volatile u16 *)(addr)) = val;
+	asm volatile("movw %1, %%gs:(%0)" :: "rm"(addr), "ri"(val));
 	barrier();
 }
 
 static inline void iowrite32(void *addr, u32 val)
 {
 	wmb();
-	(*(volatile u32 *)(addr)) = val;
+	asm volatile("movl %1, %%gs:(%0)" :: "rm"(addr), "ri"(val));
 	barrier();
 }
 
@@ -163,6 +163,9 @@ static inline void die(void)
 {
 	asm volatile("ud2");
 }
+
+
+void *lz_base;
 
 /* Assembly routines */
 void load_stack(const void *new_stack);

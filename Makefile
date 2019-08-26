@@ -1,7 +1,7 @@
-CFLAGS = -ffreestanding -fPIE -fno-exceptions -fshort-wchar
-CFLAGS += -Iinclude -Wall -g -MMD -MP -Os -mno-sse -mno-mmx
+CFLAGS = -ffreestanding -fPIC -fno-exceptions -fshort-wchar
+CFLAGS += -Iinclude -Wall -g -MMD -MP -Os -mno-sse -mno-mmx -m32
 AFLAGS = -D__ASSEMBLY__ $(patsubst -std=gnu%,,$(CFLAGS))
-LDFLAGS = -nostdlib -no-pie -Wl,--build-id=none
+LDFLAGS = -nostdlib -fpic -Wl,--build-id=none -N
 ASM = lz_header.S # must be in order
 SRC = $(wildcard *.c)
 OBJ = $(ASM:.S=.o) # must be first

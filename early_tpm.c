@@ -32,15 +32,15 @@
 
 static inline u32 be16_to_cpu(u16 val)
 {
-	return get_unaligned_be16((const void*)(u64)&val);
+	return get_unaligned_be16((const void*)&val);
 }
 static inline u32 cpu_to_be16(u16 val)
 {
-	return get_unaligned_be16((const void*)(u64)&val);
+	return get_unaligned_be16((const void*)&val);
 }
 static inline u32 cpu_to_be32(u32 val)
 {
-	return get_unaligned_be32((const void*)(u64)&val);
+	return get_unaligned_be32((const void*)&val);
 }
 
 static u8 locality = TPM_NO_LOCALITY;
@@ -170,7 +170,7 @@ struct tpmbuff *alloc_tpmbuff(enum tpm_hw_intf intf, u8 locality)
 		b->truesize = STATIC_TIS_BUFFER_SIZE;
 		break;
 	case TPM_CRB:
-		b->head = (u8 *)(u64)(TPM_MMIO_BASE + (locality << 12) \
+		b->head = (u8 *)(TPM_MMIO_BASE + (locality << 12) \
 			       + TPM_CRB_DATA_BUFFER_OFFSET);
 		b->truesize = TPM_CRB_DATA_BUFFER_SIZE;
 		break;
@@ -230,22 +230,22 @@ void tpm_udelay(int loops)
 
 u8 tpm_read8(u32 field)
 {
-	return ioread8((void*)(u64)(TPM_MMIO_BASE | field));
+	return ioread8((void*)(TPM_MMIO_BASE | field));
 }
 
 void tpm_write8(unsigned char val, u32 field)
 {
-	iowrite8((void*)(u64)(TPM_MMIO_BASE | field), val);
+	iowrite8((void*)(TPM_MMIO_BASE | field), val);
 }
 
 u32 tpm_read32(u32 field)
 {
-	return ioread32((void*)(u64)(TPM_MMIO_BASE | field));
+	return ioread32((void*)(TPM_MMIO_BASE | field));
 }
 
 void tpm_write32(u32 val, u32 field)
 {
-	iowrite32((void*)(u64)(TPM_MMIO_BASE | field), val);
+	iowrite32((void*)(TPM_MMIO_BASE | field), val);
 }
 
 /*** tis.c ***/

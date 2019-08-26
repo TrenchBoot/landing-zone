@@ -28,11 +28,9 @@
 
 static u8 __page_data dev_table[3 * PAGE_SIZE];
 
-static void *lz_base;
+void *lz_base;
 static void *zero_page;
 static SHA1_CONTEXT sha1ctx;
-
-void setup2(void);
 
 static void print(char * txt) {
 	while (*txt != '\0') {
@@ -135,24 +133,29 @@ void hexdump(const void *memory, size_t length)
 
 void setup(void *_lz_base)
 {
-	void *second_stack;
 	u32 *tb_dev_map;
 	u64 pfn, end_pfn;
 	u32 dev;
+	u32 *code32_start;
+	u32 *slaunch_header_offset;
+	u32 *sl_stub_entry_offset;
+	u32 *data, size;
+	void *pm_kernel_entry;
+	struct tpm *tpm;
 
 	/*
-	 * Now in 64b mode, paging is setup. This is the launching point. We can
-	 * now do what we want. First order of business is to setup
-	 * DEV to cover memory from the start of bzImage to the end of the LZ
-	 * "kernel". At the end, trampoline to the PM entry point which will
-	 * include the Secure Launch stub.
+	 * This is the launching point. We can now do what we want.
+	 * First order of business is to setup DEV to cover memory from
+	 * the start of bzImage to the end of the LZ "kernel". At the end,
+	 * trampoline to the PM entry point which will include the Secure
+	 * Launch stub.
 	 */
 
 	/* Store the lz_base for all to use */
 	lz_base = _lz_base;
 
 	/* The Zero Page with the boot_params and legacy header */
-	zero_page = (u8*)(u64)lz_header.zero_page_addr;
+	zero_page = (u8*)lz_header.zero_page_addr;
 
 	/* DEV CODE */
 
@@ -168,44 +171,20 @@ void setup(void *_lz_base)
 
 	pci_init();
 	dev = dev_locate();
-	dev_load_map(dev, (u32)((u64)dev_table));
+	dev_load_map(dev, (u32)dev_table);
 	dev_flush_cache(dev);
 
 	/* Set the DEV address for the TB stub to use */
 	tb_dev_map = (u32*)((u8*)zero_page + BP_TB_DEV_MAP);
-	*tb_dev_map = (u32)((u64)dev_table);
+	/* tb_dev_map is physical pointer, iowrite uses flat segment */
+	iowrite32(tb_dev_map, (u32)dev_table);
 
-	/*
-	 * Switch to our nice big stack which starts at the page behind the
-	 * landing zone and of course grows down.
-	 */
-	second_stack = lz_base - LZ_SECOND_STAGE_STACK_OFFSET;
-	load_stack(second_stack);
-
-	/* Call secondary setup on new stack */
-	setup2();
-
-	/* Should never get here */
-	die();
-}
-
-void setup2(void)
-{
-	u32 *code32_start;
-	u32 *slaunch_header_offset;
-	u32 *sl_stub_entry_offset;
-	u32 *data, size;
-	void *pm_kernel_entry;
-	struct tpm *tpm;
 
 	code32_start = (u32*)((u8*)zero_page + BP_CODE32_START);
 	slaunch_header_offset = (u32*)((u8*)zero_page + BP_MLE_HEADER);
-	sl_stub_entry_offset = (void*)((u64)(*code32_start)+(*slaunch_header_offset)+24);
+	sl_stub_entry_offset = (void*)(ioread32(code32_start)+ioread32(slaunch_header_offset)+24);
 
-	print("sl_stub_entry_offset:\n");
-	hexdump(sl_stub_entry_offset, 0x100);
-
-	pm_kernel_entry = (void*)((u64)(*code32_start)+(*sl_stub_entry_offset));
+	pm_kernel_entry = (void*)(ioread32(code32_start)+ioread32(sl_stub_entry_offset));
 
 	/*
 	 * TODO Note these functions can fail but there is no clear way to
@@ -217,25 +196,21 @@ void setup2(void)
 
 	/* extend TB Loader code segment into PCR17 */
 	print("TPM extending ");
-	data = (u32*)(uintptr_t)*code32_start;
+	data = (u32*)ioread32(code32_start);
 	print_p(data);
 	size = lz_header.slaunch_loader_size;
 	sha1sum(&sha1ctx, data, size);
-	print("shasum calculated:\n");
-	hexdump(sha1ctx.buf, 20);
+	print("shasum calculated, ");
 	tpm_extend_pcr(tpm, 17, TPM_HASH_ALG_SHA1, &sha1ctx.buf[0]);
+	tpm_extend_pcr(tpm, 8, TPM_HASH_ALG_SHA1, &sha1ctx.buf[0]);
 	print("PCR extended\n");
 
 	tpm_relinquish_locality(tpm);
 	free_tpm(tpm);
 
 	/* End of the line, off to the protected mode entry into the kernel */
-	print("pm_kernel_entry:\n");
-	hexdump(pm_kernel_entry, 0x100);
-	print("zero_page:\n");
-	hexdump(zero_page, 0x100);
 	print("lz_base:\n");
-	hexdump(lz_base, 0x100);
+	hexdump(0, 0x300);
 	lz_exit(pm_kernel_entry, zero_page, lz_base);
 
 	/* Should never get here */

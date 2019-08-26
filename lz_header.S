@@ -23,9 +23,10 @@
 #include <config.h>
 
 /* Selectors, CS and SS compatible with initial state after SKINIT */
-#define CS_SEL32         0x0008
+#define CS_SEL           0x0008
 #define DS_SEL           0x0010
-#define CS_SEL64         0x0018
+#define CS_LZ            0x0018
+#define DS_LZ            0x0020
 
 	.section .text
 
@@ -45,7 +46,7 @@ GLOBAL(lz_header) /* The LZ header setup by the bootloader */
 ENDDATA(lz_header)
 
 lz_first_stack:
-	.fill LZ_FIRST_STAGE_STACK_SIZE, 1, 0
+	.fill LZ_FIRST_STAGE_STACK_SIZE/4, 4, 0xcefaedfe
 
 	.code32
 
@@ -69,7 +70,7 @@ _entry:
 	movl	%eax, %ebp
 
 	/* Set up the Stage 1 stack. */
-	leal	LZ_FIRST_STAGE_STACK_START(%ebp), %esp
+	movl	$LZ_FIRST_STAGE_STACK_START, %esp
 
 	/* Clear R_INIT and DIS_A20M.  */
 	movl	$(IA32_VM_CR), %ecx
@@ -78,64 +79,42 @@ _entry:
 	andl	$(~(1 << VM_CR_DIS_A20M)), %eax
 	wrmsr
 
-	/* Relocate GDT.base, 64bit ljmp offset, and pagetables. */
+	movl	%ebp, %eax
+
+	/* Relocate GDT.base, ljmp offset, and LZ segments base addresses. */
 	addl	%ebp, 2 + gdtr(%ebp)
-	addl	%ebp, 1 + .Ljump64(%ebp)
-	addl	%ebp,        l4_identmap(%ebp) /* L4[0] => L3        */
-	addl	%ebp,        l3_identmap(%ebp) /* L3[0] => First  L2 */
-	addl	%ebp, 0x08 + l3_identmap(%ebp) /* L3[1] => Second L2 */
-	addl	%ebp, 0x10 + l3_identmap(%ebp) /* L3[2] => Third  L2 */
-	addl	%ebp, 0x18 + l3_identmap(%ebp) /* L3[3] => Fourth L2 */
+	addl	%ebp, 1 + .Ljump(%ebp)
+	addw	%ax, _lz_cs_base1(%ebp)
+	addw	%ax, _lz_ds_base1(%ebp)
+	shrl	$16, %eax
+	addb	%al, 2 + _lz_cs_base1(%ebp)
+	addb	%al, 2 + _lz_ds_base1(%ebp)
+	addb	%ah, _lz_cs_base3(%ebp)
+	addb	%ah, _lz_ds_base3(%ebp)
 
 	/* Load GDT */
 	lgdt	gdtr(%ebp)
 
-	/* Load data segment regs.  %ss is already flat and matches DS_SEL. */
-	movl	$DS_SEL, %eax
+	/* Load data segment regs. */
+	movl	$DS_LZ, %eax
 	movl	%eax, %ds
 	movl	%eax, %es
+	movl	%eax, %ss
+	movl	$DS_SEL, %eax
 	movl	%eax, %fs
 	movl	%eax, %gs
 
-	/* Restore CR4, PAE must be enabled before IA-32e mode */
-	movl	%cr4, %ecx
-	orl	$(CR4_PAE | CR4_PGE), %ecx
-	movl	%ecx, %cr4
-
-	/* Load PML4 table location into PT base register */
-	leal	l4_identmap(%ebp), %eax
-	movl	%eax, %cr3
-
-	/* Enable IA-32e mode and paging */
-	movl	$(IA32_EFER), %ecx
-	rdmsr
-	orl	$(1 << EFER_LME), %eax
-	wrmsr
-	movl	%cr0, %eax
-	orl	$(CR0_PG | CR0_NE | CR0_ET | CR0_MP | CR0_PE), %eax
-	movl	%eax, %cr0
-	jmp	1f
-1:
-	/* Now in IA-32e compatibility mode, ljmp to 64b mode */
-
-.Ljump64:
-        ljmpl	$CS_SEL64, $1f /* Offset - dynamically relocated. */
-
-	.code64
-
+	ljmpl	$CS_LZ, $1f
 1:
 	/* Pass the base of the LZ to the setup code */
-	movl	%ebp, %edi
+	pushl	%ebp
 
 	/* End of the line, we should never return */
-	callq	setup
+	calll	setup
 	ud2
 
 .globl print_char
 print_char:
-	pushq	%rax
-	pushq	%rdx
-	xorq	%rdx, %rdx
 	movw	$0x3f8, %dx
 	addw	$5, %dx
 1:
@@ -143,64 +122,28 @@ print_char:
 	testb	$0x20, %al
 	jz	1b
 	movw	$0x3f8, %dx
-	movl	%edi, %eax
+	movl	4(%esp), %eax
 	outb	%al, %dx
-	popq	%rdx
-	popq	%rax
-	retq
+	retl
 
 .globl load_stack
 load_stack:
-	movq	(%rsp), %rax /* Return address */
-	movq	%rdi, %rsp
-	pushq	%rax
-	retq
+	movl    (%esp), %eax /* Return address */
+	movl    4(%esp), %esp
+	pushl   %eax
+	retl
 
 .globl stgi
 stgi:
 	.byte	0x0f, 0x01, 0xdc
-	retq
+	retl
 
 .globl lz_exit
 lz_exit:
-	/* RDI has protected mode kernel entry */
-	/* RSI has ZP base (where startup_32 expects it) */
-	/* RDX has LZ base (where Trenchboot expects it) */
+	/* We do not return */
+	addl $4, %esp
 
-	/* Save entry target where TXT would pass it */
-	movl	%edi, %ebx
-
-	/* Stash RDX in RBP since r/w MSR will clobber it */
-	movq	%rdx, %rbp
-
-	/* Setup target to ret to compat mode */
-	lea	.Lentry_compat(%rip), %rcx
-
-	/* Do the far return */
-	pushq	$CS_SEL32
-	pushq	%rcx
-	lretq
-
-	.code32
-
-.Lentry_compat:
-	/* Now in IA-32e compatibility mode, next stop is protected mode */
-
-	/* Turn paging off - we are identity mapped so we will survive */
-	movl	%cr0, %eax
-	andl	$(~CR0_PG), %eax
-	movl	%eax, %cr0
-
-	/* Disable IA-32e mode */
-	movl	$(IA32_EFER), %ecx
-	rdmsr
-	andl	$(~(1 << EFER_LME)), %eax
-	wrmsr
-
-.Lentry32:
 	/* Now in protected mode, make things look like TXT post launch */
-	pushfl
-	popl	%eax
 	movl	$(0x00000002), %eax
 	pushl	%eax
 	popfl /* EFLAGS = 00000002H */
@@ -222,7 +165,6 @@ lz_exit:
 	andl	$(~(1 << EFER_SVME)), %eax
 	wrmsr /* IA32_EFER = 0 */
 
-	movl	%dr7, %eax
 	movl	$(0x00000400), %eax
 	movl	%eax, %dr7 /* DR7 = 00000400H */
 
@@ -231,9 +173,27 @@ lz_exit:
 	xorw	%ax, %ax /* 16 - 63 reserved */
 	wrmsr /* IA32_DEBUGCTL = 0 */
 
+	/* Save entry target where TXT would pass it */
+	/* EBX has protected mode kernel entry */
+	/* ESI has ZP base (where startup_32 expects it) */
+	/* EDX has LZ base (where Trenchboot expects it) */
+	popl	%ebx
+	popl	%esi
+	popl	%edx
+
+	/* Load flat data segments. */
+	movl	$DS_SEL, %eax
+	movl	%eax, %ds
+	movl	%eax, %es
+	movl	%eax, %ss
+
+	/* Switch CS back to flat mode */
+.Ljump:
+	ljmpl	$CS_SEL, $1f
+1:
+
 	/* Jump to entry target - EBX: startup_32 ESI: ZP base EDX: LZ base */
-	movl	%ebp, %edx
-	jmp	*%ebx
+	jmpl	*%ebx
 
 	.data
 
@@ -243,7 +203,7 @@ gdt:
 	.word   0
 gdtr:
 	.word	.Lgdt_end - gdt - 1 /* Limit */
-	.long	gdt                 /* Base - dynamically relocated. */
+	.long	gdt                 /* Base  */
 ENDDATA(gdtr)
 
 	/* 32b Code Segment */
@@ -260,39 +220,24 @@ ENDDATA(gdtr)
 	.byte	0x93   /* P=1 DPL=0 S=1 Type=0010 C=0 W=1 A=1 */
 	.byte	0xcf   /* G=1 D=1 L=0 AVL=0 Limit 2 */
 	.byte	0x00   /* Base 3 */
-	/* 64b Code Segment */
-	.word	0x0000 /* Limit 1 */
+	/* LZ Code Segment */
+	.word	0x0010 /* Limit 1 */
+_lz_cs_base1:
 	.word	0x0000 /* Base 1 */
 	.byte	0x00   /* Base 2 */
 	.byte	0x9b   /* P=1 DPL=0 S=1 Type=1010 C=0 R=1 A=1 */
-	.byte	0x20   /* G=0 D=0 L=1 AVL=0 Limit 2 */
+	.byte	0xc0   /* G=1 D=1 L=0 AVL=0 Limit 2 */
+_lz_cs_base3:
+	.byte	0x00   /* Base 3 */
+	/* LZ Data Segment */
+	.word	0x0010 /* Limit 1 */
+_lz_ds_base1:
+	.word	0x0000 /* Base 1 */
+	.byte	0x00   /* Base 2 */
+	.byte	0x93   /* P=1 DPL=0 S=1 Type=0010 C=0 R=1 A=1 */
+	.byte	0xc0   /* G=1 D=1 L=0 AVL=0 Limit 2 */
+_lz_ds_base3:
 	.byte	0x00   /* Base 3 */
 .Lgdt_end:
 ENDDATA(gdt)
 
-	.section .page_data, "a", @progbits
-	.align PAGE_SIZE
-
-	/* 64bit Pagetables, identity map of the first 4G of RAM. */
-
-l2_identmap: /* 4x L2 pages, each mapping 1G of RAM.  No relocations. */
-	idx = 0
-	.rept 512 * 4
-	.quad (idx << L2_PT_SHIFT) + _PAGE_PSE + _PAGE_AD + _PAGE_RW + _PAGE_PRESENT
-	idx = idx + 1
-	.endr
-ENDDATA(l2_identmap)
-
-l3_identmap: /* 1x L3 page, mapping the 4x L2 pages.  4 relocations. */
-	idx = 0
-	.rept 4
-	.quad l2_identmap + (idx * PAGE_SIZE) + _PAGE_AD + _PAGE_RW + _PAGE_PRESENT
-	idx = idx + 1
-	.endr
-	.align PAGE_SIZE
-ENDDATA(l3_identmap)
-
-l4_identmap: /* 1x L4 page, mapping the L3 page. 1 relocation. */
-	.quad l3_identmap + _PAGE_AD + _PAGE_RW + _PAGE_PRESENT
-	.align PAGE_SIZE
-ENDDATA(l4_identmap)

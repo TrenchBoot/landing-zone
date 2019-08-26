@@ -96,7 +96,7 @@ static int pci_conf1_write(unsigned int seg, unsigned int bus,
 static void *mmio_base_addr;
 
 #define PCI_MMIO_ADDRESS(bus, devfn, reg) \
-        (void *)((size_t)mmio_base_addr | (bus << 20ULL) | (devfn << 12ULL) | reg)
+        (void *)((size_t)mmio_base_addr | (bus << 20UL) | (devfn << 12UL) | reg)
 
 static int pci_mmio_read(unsigned int seg, unsigned int bus,
                    unsigned int devfn, int reg, int len, u32 *value)
@@ -115,13 +115,13 @@ static int pci_mmio_read(unsigned int seg, unsigned int bus,
 		*value = ioread8(addr);
 		break;
 	case 2:
-		*value = ioread16((void *)((size_t)addr & ~1ULL));
+		*value = ioread16((void *)((size_t)addr & ~1UL));
 		break;
 	case 3:
-		*value = ioread16((void *)((size_t)addr & ~3ULL));
+		*value = ioread16((void *)((size_t)addr & ~3UL));
 		break;
 	case 4:
-		*value = ioread32((void *)((size_t)addr & ~3ULL));
+		*value = ioread32((void *)((size_t)addr & ~3UL));
 		break;
 	}
 	return 0;
@@ -141,13 +141,13 @@ static int pci_mmio_write(unsigned int seg, unsigned int bus,
 		iowrite8(addr, (u8)value);
 		break;
 	case 2:
-		iowrite16((void *)((size_t)addr & ~1ULL), (u16)value);
+		iowrite16((void *)((size_t)addr & ~1UL), (u16)value);
 		break;
 	case 3:
-		iowrite16((void *)((size_t)addr & ~3ULL), (u16)value);
+		iowrite16((void *)((size_t)addr & ~3UL), (u16)value);
 		break;
 	case 4:
-		iowrite32((void *)((size_t)addr & ~3ULL), (u32)value);
+		iowrite32((void *)((size_t)addr & ~3UL), (u32)value);
 		break;
 	}
 	return 0;
@@ -161,7 +161,7 @@ void pci_init(void)
 
 	if (eax & 1)	// MMIO configuration space is enabled
 	{
-		mmio_base_addr = (void *)(((u64)edx << 32ULL) | (eax & 0xfff00000));
+		mmio_base_addr = (void *)(eax & 0xfff00000); // can't do anything with >4G
 		pci_read = &pci_mmio_read;
 		pci_write = &pci_mmio_write;
 	}

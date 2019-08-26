@@ -26,6 +26,7 @@
 #include <types.h>
 #include <errno-base.h>
 #include <mem.h>
+#include <boot.h>
 #include <sha1sum.h>
 
 #undef BIG_ENDIAN_HOST
@@ -71,10 +72,10 @@ transform( SHA1_CONTEXT *hd, unsigned char *data )
     { int i;
       unsigned char *p2;
       for(i=0, p2=(unsigned char*)x; i < 16; i++, p2 += 4 ) {
-	p2[3] = *data++;
-	p2[2] = *data++;
-	p2[1] = *data++;
-	p2[0] = *data++;
+	p2[3] = ioread8(data++);
+	p2[2] = ioread8(data++);
+	p2[1] = ioread8(data++);
+	p2[0] = ioread8(data++);
       }
     }
 #endif
@@ -197,7 +198,7 @@ static void
 sha1_write( SHA1_CONTEXT *hd, unsigned char *inbuf, u32 inlen)
 {
     if( hd->count == 64 ) { /* flush the buffer */
-	transform( hd, hd->buf );
+	transform( hd, (hd->buf) + (uintptr_t)lz_base );
 	hd->count = 0;
 	hd->nblocks++;
     }
@@ -205,7 +206,7 @@ sha1_write( SHA1_CONTEXT *hd, unsigned char *inbuf, u32 inlen)
 	return;
     if( hd->count ) {
 	for( ; inlen && hd->count < 64; inlen-- )
-	    hd->buf[hd->count++] = *inbuf++;
+	    hd->buf[hd->count++] = ioread8(inbuf++);	// TODO: ioread is slow!
 	sha1_write( hd, NULL, 0 );
 	if( !inlen )
 	    return;
@@ -219,7 +220,7 @@ sha1_write( SHA1_CONTEXT *hd, unsigned char *inbuf, u32 inlen)
 	inbuf += 64;
     }
     for( ; inlen && hd->count < 64; inlen-- )
-	hd->buf[hd->count++] = *inbuf++;
+	hd->buf[hd->count++] = ioread8(inbuf++);	// TODO: ioread is slow!
 }
 
 
@@ -273,7 +274,7 @@ sha1_final(SHA1_CONTEXT *hd)
     hd->buf[61] = lsb >> 16;
     hd->buf[62] = lsb >>  8;
     hd->buf[63] = lsb	   ;
-    transform( hd, hd->buf );
+    transform( hd, (hd->buf) + (uintptr_t)lz_base );
 
     p = hd->buf;
 #ifdef BIG_ENDIAN_HOST
