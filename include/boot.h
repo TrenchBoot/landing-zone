@@ -165,7 +165,6 @@ static inline void die(void)
 }
 
 /* Assembly routines */
-void load_stack(const void *new_stack);
 void print_char(char c);
 void stgi(void);
 void lz_exit(const void *pm_enrty, const void *zp_base, const void *lz_base);

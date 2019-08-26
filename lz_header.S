@@ -150,13 +150,6 @@ print_char:
 	popq	%rax
 	retq
 
-.globl load_stack
-load_stack:
-	movq	(%rsp), %rax /* Return address */
-	movq	%rdi, %rsp
-	pushq	%rax
-	retq
-
 .globl stgi
 stgi:
 	.byte	0x0f, 0x01, 0xdc

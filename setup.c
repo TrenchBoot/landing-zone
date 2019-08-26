@@ -29,10 +29,7 @@
 static u8 __page_data dev_table[3 * PAGE_SIZE];
 
 static void *lz_base;
-static void *zero_page;
 static SHA1_CONTEXT sha1ctx;
-
-void setup2(void);
 
 static void print(char * txt) {
 	while (*txt != '\0') {
@@ -135,10 +132,15 @@ void hexdump(const void *memory, size_t length)
 
 void setup(void *_lz_base)
 {
-	void *second_stack;
 	u32 *tb_dev_map;
 	u64 pfn, end_pfn;
 	u32 dev;
+	u32 *code32_start;
+	u32 *slaunch_header_offset;
+	u32 *sl_stub_entry_offset;
+	u32 *data, size;
+	void *pm_kernel_entry, *zero_page;
+	struct tpm *tpm;
 
 	/*
 	 * Now in 64b mode, paging is setup. This is the launching point. We can
@@ -174,29 +176,6 @@ void setup(void *_lz_base)
 	/* Set the DEV address for the TB stub to use */
 	tb_dev_map = (u32*)((u8*)zero_page + BP_TB_DEV_MAP);
 	*tb_dev_map = (u32)((u64)dev_table);
-
-	/*
-	 * Switch to our nice big stack which starts at the page behind the
-	 * landing zone and of course grows down.
-	 */
-	second_stack = lz_base - LZ_SECOND_STAGE_STACK_OFFSET;
-	load_stack(second_stack);
-
-	/* Call secondary setup on new stack */
-	setup2();
-
-	/* Should never get here */
-	die();
-}
-
-void setup2(void)
-{
-	u32 *code32_start;
-	u32 *slaunch_header_offset;
-	u32 *sl_stub_entry_offset;
-	u32 *data, size;
-	void *pm_kernel_entry;
-	struct tpm *tpm;
 
 	code32_start = (u32*)((u8*)zero_page + BP_CODE32_START);
 	slaunch_header_offset = (u32*)((u8*)zero_page + BP_MLE_HEADER);
