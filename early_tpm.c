@@ -25,22 +25,27 @@
 #include <boot.h>
 #include <errno-base.h>
 #include <mem.h>
-#include <be_byteshift.h>
 #include <tpm.h>
 
 #include "early_tpm.h"
 
 static inline u32 be16_to_cpu(u16 val)
 {
-	return get_unaligned_be16((const void*)(u64)&val);
+	u8 a = val, b = val >> 8;
+
+	return (a << 8) | b;
 }
 static inline u32 cpu_to_be16(u16 val)
 {
-	return get_unaligned_be16((const void*)(u64)&val);
+	u8 a = val, b = val >> 8;
+
+	return (a << 8) | b;
 }
 static inline u32 cpu_to_be32(u32 val)
 {
-	return get_unaligned_be32((const void*)(u64)&val);
+	u8 a = val, b = val >> 8, c = val >> 16, d = val >> 24;
+
+	return ((u32)a << 24) | (b << 16) | (c << 8) | d;
 }
 
 static u8 locality = TPM_NO_LOCALITY;
