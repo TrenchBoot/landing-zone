@@ -25,7 +25,6 @@
 #include <defs.h>
 #include <types.h>
 #include <errno-base.h>
-#include <mem.h>
 #include <sha1sum.h>
 
 #undef BIG_ENDIAN_HOST
