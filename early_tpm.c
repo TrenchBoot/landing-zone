@@ -24,7 +24,6 @@
 #include <types.h>
 #include <boot.h>
 #include <errno-base.h>
-#include <mem.h>
 #include <tpm.h>
 
 #include "early_tpm.h"

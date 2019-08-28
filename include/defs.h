@@ -17,8 +17,6 @@
 #ifndef __DEFS_H__
 #define __DEFS_H__
 
-#define NULL 0
-
 #define PAGE_SHIFT      12
 #define PAGE_SIZE       (1 << PAGE_SHIFT)
 #define PAGE_MASK       (~(PAGE_SIZE - 1))

@@ -41,7 +41,7 @@ typedef unsigned short		uint16_t;
 typedef unsigned int		uint32_t;
 typedef unsigned long long	uint64_t;
 
-#define NULL 0
+#define NULL ((void *)0)
 
 #define min(x,y) ({ \
 	x < y ? x : y; })
@@ -52,4 +52,19 @@ typedef unsigned long long	uint64_t;
 #define be32_to_cpu(x) ( \
 	((x) >> 24) | (((x) & 0x00FF0000) >> 8) | \
 	(((x) & 0x0000FF00) << 8) | ((x) << 24))
+
+/*
+ * Local declaration of bits of libc
+ *
+ * Use __builtin_???() wherever possible to allow the compiler to perform
+ * optimisations (e.g. constant folding) where possible.  Calls to ???() will
+ * be emitted as needed.
+ */
+
+void *memset(void *s, int c, size_t n);
+#define memset(d, c, n) __builtin_memset(d, c, n)
+
+void *memcpy(void *dst, const void *src, size_t n);
+#define memcpy(d, s, n) __builtin_memcpy(d, s, n)
+
 #endif /* __TYPES_H__ */

@@ -20,7 +20,6 @@
 #include <types.h>
 #include <config.h>
 #include <boot.h>
-#include <mem.h>
 #include <pci.h>
 #include <dev.h>
 #include <tpm.h>
