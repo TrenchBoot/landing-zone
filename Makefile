@@ -1,12 +1,22 @@
-CFLAGS = -ffreestanding -fPIE -fno-exceptions -fshort-wchar
-CFLAGS += -Iinclude -Wall -g -MMD -MP -Os -mno-sse -mno-mmx
-AFLAGS = -D__ASSEMBLY__ $(patsubst -std=gnu%,,$(CFLAGS))
-LDFLAGS = -nostdlib -no-pie -Wl,--build-id=none
+# Start with empty flags
+CFLAGS  :=
+LDFLAGS :=
 
 ifeq ($(LTO),y)
-CFLAGS += -flto
+CFLAGS  += -flto
 LDFLAGS += -flto
 endif
+
+# There is a 64k total limit, so optimise for size.  The binary may be loaded
+# at an arbitray location, so build it as position independent, but link as
+# non-pie as all relocations are internal and there is no dynamic loader to
+# help.
+CFLAGS  += -Os -g -MMD -MP -mno-sse -mno-mmx -fpie -fomit-frame-pointer
+CFLAGS  += -Iinclude -ffreestanding -Wall
+LDFLAGS += -nostdlib -no-pie -Wl,--build-id=none
+
+# Derive AFLAGS from CFLAGS
+AFLAGS := -D__ASSEMBLY__ $(filter-out -std=%,$(CFLAGS))
 
 # Collect objects for building.  For simplicity, we take all ASM/C files
 ASM := $(wildcard *.S)
