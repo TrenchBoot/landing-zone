@@ -27,7 +27,7 @@
 #define DS_SEL           0x0010
 #define CS_SEL64         0x0018
 
-	.section .text
+	.section .headers, "ax", @progbits
 
 GLOBAL(sl_header)
 	.word	_entry /* SL header LZ offset to code start */
@@ -49,6 +49,7 @@ lz_first_stack:
 	.fill LZ_FIRST_STAGE_STACK_SIZE, 1, 0
 ENDDATA(lz_first_stack)
 
+	.text
 	.code32
 
 GLOBAL(_entry)

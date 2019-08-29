@@ -2,15 +2,16 @@ CFLAGS = -ffreestanding -fPIE -fno-exceptions -fshort-wchar
 CFLAGS += -Iinclude -Wall -g -MMD -MP -Os -mno-sse -mno-mmx
 AFLAGS = -D__ASSEMBLY__ $(patsubst -std=gnu%,,$(CFLAGS))
 LDFLAGS = -nostdlib -no-pie -Wl,--build-id=none
-ASM = head.S # must be in order
-SRC = $(wildcard *.c)
-OBJ = $(ASM:.S=.o) # must be first
-OBJ += $(SRC:.c=.o)
 
 ifeq ($(LTO),y)
 CFLAGS += -flto
 LDFLAGS += -flto
 endif
+
+# Collect objects for building.  For simplicity, we take all ASM/C files
+ASM := $(wildcard *.S)
+SRC := $(wildcard *.c)
+OBJ := $(ASM:.S=.o) $(SRC:.c=.o)
 
 .PHONY: all
 all: lz_header.bin
