@@ -25,6 +25,7 @@ SECTIONS
 {
 	. = 0;
 	.text : {
+		*(.headers)
 		*(.text*)
 	}
 	. = ALIGN(64);
