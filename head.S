@@ -68,57 +68,57 @@ GLOBAL(_entry)
 	 * done with an %ss-relative write.  Therefore, we store the base
 	 * address in %ebp.
 	 */
-	movl	%eax, %ebp
+	mov	%eax, %ebp
 
 	/* Set up the Stage 1 stack. */
-	leal	LZ_FIRST_STAGE_STACK_START(%ebp), %esp
+	lea	LZ_FIRST_STAGE_STACK_START(%ebp), %esp
 
 	/* Clear R_INIT and DIS_A20M.  */
-	movl	$(IA32_VM_CR), %ecx
+	mov	$IA32_VM_CR, %ecx
 	rdmsr
 	and	$~(VM_CR_DIS_A20M | VM_CR_R_INIT), %eax
 	wrmsr
 
 	/* Relocate GDT.base, 64bit ljmp offset, and pagetables. */
-	addl	%ebp, 2 + gdtr(%ebp)
-	addl	%ebp, 1 + .Ljump64(%ebp)
-	addl	%ebp,        l4_identmap(%ebp) /* L4[0] => L3        */
-	addl	%ebp,        l3_identmap(%ebp) /* L3[0] => First  L2 */
-	addl	%ebp, 0x08 + l3_identmap(%ebp) /* L3[1] => Second L2 */
-	addl	%ebp, 0x10 + l3_identmap(%ebp) /* L3[2] => Third  L2 */
-	addl	%ebp, 0x18 + l3_identmap(%ebp) /* L3[3] => Fourth L2 */
-	addl	%ebp,        l2_identmap(%ebp) /* L2[0] => L1        */
+	add	%ebp, 2 + gdtr(%ebp)
+	add	%ebp, 1 + .Ljump64(%ebp)
+	add	%ebp,        l4_identmap(%ebp) /* L4[0] => L3        */
+	add	%ebp,        l3_identmap(%ebp) /* L3[0] => First  L2 */
+	add	%ebp, 0x08 + l3_identmap(%ebp) /* L3[1] => Second L2 */
+	add	%ebp, 0x10 + l3_identmap(%ebp) /* L3[2] => Third  L2 */
+	add	%ebp, 0x18 + l3_identmap(%ebp) /* L3[3] => Fourth L2 */
+	add	%ebp,        l2_identmap(%ebp) /* L2[0] => L1        */
 
 	/* Load GDT */
 	lgdt	gdtr(%ebp)
 
 	/* Load data segment regs.  %ss is already flat and matches DS_SEL. */
-	movl	$DS_SEL, %eax
-	movl	%eax, %ds
-	movl	%eax, %es
+	mov	$DS_SEL, %eax
+	mov	%eax, %ds
+	mov	%eax, %es
 
 	/* Restore CR4, PAE must be enabled before IA-32e mode */
-	movl	%cr4, %ecx
+	mov	%cr4, %ecx
 	or	$CR4_PAE, %ecx
-	movl	%ecx, %cr4
+	mov	%ecx, %cr4
 
 	/* Load PML4 table location into PT base register */
-	leal	l4_identmap(%ebp), %eax
-	movl	%eax, %cr3
+	lea	l4_identmap(%ebp), %eax
+	mov	%eax, %cr3
 
 	/* Enable IA-32e mode and paging */
-	movl	$(IA32_EFER), %ecx
+	mov	$IA32_EFER, %ecx
 	rdmsr
 	or	$EFER_LME >> 8, %ah
 	wrmsr
 
-	movl	%cr0, %eax
+	mov	%cr0, %eax
 	or	$CR0_PG | CR0_NE | CR0_TS | CR0_MP, %eax
-	movl	%eax, %cr0
+	mov	%eax, %cr0
 
 	/* Now in IA-32e compatibility mode, ljmp to 64b mode */
 .Ljump64:
-        ljmpl	$CS_SEL64, $1f /* Offset - dynamically relocated. */
+        ljmp	$CS_SEL64, $1f /* Offset - dynamically relocated. */
 
 	.code64
 
@@ -139,26 +139,26 @@ GLOBAL(_entry)
 
 	/* Setup target to ret to compat mode */
 	lea	1f(%rip), %ecx
-	pushq	$CS_SEL32
-	pushq	%rcx
+	push	$CS_SEL32
+	push	%rcx
 	lretq
 
 	.code32
 1:	/* Now in IA-32e compatibility mode, next stop is protected mode */
 
 	/* Turn paging off - we are identity mapped so we will survive */
-	movl	%cr0, %eax
+	mov	%cr0, %eax
 	and	$~(CR0_PG | CR0_NE | CR0_TS | CR0_MP), %eax
-	movl	%eax, %cr0
+	mov	%eax, %cr0
 
 	/* Disable IA-32e mode */
-	movl	$(IA32_EFER), %ecx
+	mov	$IA32_EFER, %ecx
 	rdmsr
 	and	$~(EFER_LME >> 8), %ah
 	wrmsr
 
 	/* Now in protected mode, make things look like TXT post launch */
-	movl	%cr4, %eax
+	mov	%cr4, %eax
 	and	$~CR4_PAE, %eax
 	mov	%eax, %cr4
 
@@ -166,7 +166,7 @@ GLOBAL(_entry)
 	popf
 
 	/* Jump to entry target - EBX: startup_32 ESI: ZP base EDX: LZ base */
-	movl	%ebp, %edx
+	mov	%ebp, %edx
 	jmp	*%ebx
 ENDFUNC(_entry)
 
