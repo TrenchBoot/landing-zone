@@ -57,7 +57,7 @@ u32 dev_locate(void)
 	return pci_cap_ptr;
 }
 
-u32 dev_load_map(u32 dev, u32 dev_bitmap_paddr)
+u32 dev_load_map(u32 dev, uintptr_t dev_bitmap_paddr)
 {
 	u8 i;
 	u32 dev_cap;

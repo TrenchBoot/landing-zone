@@ -20,11 +20,14 @@
 #define PAGE_SHIFT      12
 #define PAGE_SIZE       (1 << PAGE_SHIFT)
 #define PAGE_MASK       (~(PAGE_SIZE - 1))
-#define PAGE_UP(p)      (((u64)(p) + PAGE_SIZE - 1) & PAGE_MASK)
-#define PAGE_DOWN(p)    ((u64)(p) & ~(PAGE_SIZE - 1))
-#define PAGE_PFN(p)     ((u64)(p) >> PAGE_SHIFT)
+#define PAGE_UP(p)      (((uintptr_t)(p) + PAGE_SIZE - 1) & PAGE_MASK)
+#define PAGE_DOWN(p)    ((uintptr_t)(p) & ~(PAGE_SIZE - 1))
+#define PAGE_PFN(p)     ((uintptr_t)(p) >> PAGE_SHIFT)
 
 #define GIGABYTE    0x40000000
+
+#define _u(x) ((uintptr_t)(x))
+#define _p(x) ((void *)_u(x))
 
 #ifdef __ASSEMBLY__
 
