@@ -25,7 +25,9 @@
 /* Selectors, CS and SS compatible with initial state after SKINIT */
 #define CS_SEL32         0x0008
 #define DS_SEL           0x0010
+#ifdef __x86_64__
 #define CS_SEL64         0x0018
+#endif
 
 	.section .headers, "ax", @progbits
 
@@ -81,6 +83,7 @@ GLOBAL(_entry)
 
 	/* Relocate GDT.base, 64bit ljmp offset, and pagetables. */
 	add	%ebp, 2 + gdtr(%ebp)
+#ifdef __x86_64__
 	add	%ebp, 1 + .Ljump64(%ebp)
 	add	%ebp,        l4_identmap(%ebp) /* L4[0] => L3        */
 	add	%ebp,        l3_identmap(%ebp) /* L3[0] => First  L2 */
@@ -88,6 +91,7 @@ GLOBAL(_entry)
 	add	%ebp, 0x10 + l3_identmap(%ebp) /* L3[2] => Third  L2 */
 	add	%ebp, 0x18 + l3_identmap(%ebp) /* L3[3] => Fourth L2 */
 	add	%ebp,        l2_identmap(%ebp) /* L2[0] => L1        */
+#endif
 
 	/* Load GDT */
 	lgdt	gdtr(%ebp)
@@ -97,6 +101,7 @@ GLOBAL(_entry)
 	mov	%eax, %ds
 	mov	%eax, %es
 
+#ifdef __x86_64__
 	/* Restore CR4, PAE must be enabled before IA-32e mode */
 	mov	%cr4, %ecx
 	or	$CR4_PAE, %ecx
@@ -123,6 +128,8 @@ GLOBAL(_entry)
 	.code64
 
 1:
+#endif	/* 64bit setup. */
+
 	call	lz_main
 	/*
 	 * lz_main() is magic.  It returns two pointers by register:
@@ -136,6 +143,8 @@ GLOBAL(_entry)
 	 */
 	mov	%eax, %ebx
 	mov	%edx, %esi
+
+#ifdef __x86_64__
 
 	/* Setup target to ret to compat mode */
 	lea	1f(%rip), %ecx
@@ -161,6 +170,7 @@ GLOBAL(_entry)
 	mov	%cr4, %eax
 	and	$~CR4_PAE, %eax
 	mov	%eax, %cr4
+#endif /* 64bit teardown. */
 
 	push	$0
 	popf
@@ -195,6 +205,7 @@ ENDDATA(gdtr)
 	.byte	0x93   /* P=1 DPL=0 S=1 Type=0010 C=0 W=1 A=1 */
 	.byte	0xcf   /* G=1 D=1 L=0 AVL=0 Limit 2 */
 	.byte	0x00   /* Base 3 */
+#ifdef __x86_64__
 	/* 64b Code Segment */
 	.word	0x0000 /* Limit 1 */
 	.word	0x0000 /* Base 1 */
@@ -202,9 +213,11 @@ ENDDATA(gdtr)
 	.byte	0x9b   /* P=1 DPL=0 S=1 Type=1010 C=0 R=1 A=1 */
 	.byte	0x20   /* G=0 D=0 L=1 AVL=0 Limit 2 */
 	.byte	0x00   /* Base 3 */
+#endif
 .Lgdt_end:
 ENDDATA(gdt)
 
+#ifdef __x86_64__
 	.section .page_data, "a", @progbits
 	.align PAGE_SIZE
 
@@ -240,3 +253,4 @@ l4_identmap: /* 1x L4 page, mapping the L3 page. 1 relocation. */
 	.quad l3_identmap + _PAGE_AD + _PAGE_RW + _PAGE_PRESENT
 	.align PAGE_SIZE
 ENDDATA(l4_identmap)
+#endif

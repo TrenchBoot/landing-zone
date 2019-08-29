@@ -7,6 +7,14 @@ CFLAGS  += -flto
 LDFLAGS += -flto
 endif
 
+ifeq ($(32),y)
+CFLAGS  += -m32 -fvisibility=hidden -fno-plt -freg-struct-return
+LDFLAGS += -m32
+else
+CFLAGS  += -m64
+LDFLAGS += -m64
+endif
+
 # There is a 64k total limit, so optimise for size.  The binary may be loaded
 # at an arbitray location, so build it as position independent, but link as
 # non-pie as all relocations are internal and there is no dynamic loader to
