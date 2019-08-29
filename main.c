@@ -169,7 +169,7 @@ asm_return_t lz_main(void)
 	 */
 
 	/* The Zero Page with the boot_params and legacy header */
-	zero_page = (u8*)(u64)lz_header.zero_page_addr;
+	zero_page = _p(lz_header.zero_page_addr);
 
 	/* DEV CODE */
 
@@ -185,21 +185,21 @@ asm_return_t lz_main(void)
 
 	pci_init();
 	dev = dev_locate();
-	dev_load_map(dev, (u32)((u64)dev_table));
+	dev_load_map(dev, _u(dev_table));
 	dev_flush_cache(dev);
 
 	/* Set the DEV address for the TB stub to use */
-	tb_dev_map = (u32*)((u8*)zero_page + BP_TB_DEV_MAP);
-	*tb_dev_map = (u32)((u64)dev_table);
+	tb_dev_map = zero_page + BP_TB_DEV_MAP;
+	*tb_dev_map = _u(dev_table);
 
-	code32_start = (u32*)((u8*)zero_page + BP_CODE32_START);
-	slaunch_header_offset = (u32*)((u8*)zero_page + BP_MLE_HEADER);
-	sl_stub_entry_offset = (void*)((u64)(*code32_start)+(*slaunch_header_offset)+24);
+	code32_start = zero_page + BP_CODE32_START;
+	slaunch_header_offset = zero_page + BP_MLE_HEADER;
+	sl_stub_entry_offset = _p(*code32_start + *slaunch_header_offset + 24);
 
 	print("sl_stub_entry_offset:\n");
 	hexdump(sl_stub_entry_offset, 0x100);
 
-	pm_kernel_entry = (void*)((u64)(*code32_start)+(*sl_stub_entry_offset));
+	pm_kernel_entry = _p(*code32_start + *sl_stub_entry_offset);
 
 	/*
 	 * TODO Note these functions can fail but there is no clear way to

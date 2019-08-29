@@ -173,8 +173,8 @@ struct tpmbuff *alloc_tpmbuff(enum tpm_hw_intf intf, u8 locality)
 		b->truesize = STATIC_TIS_BUFFER_SIZE;
 		break;
 	case TPM_CRB:
-		b->head = (u8 *)(u64)(TPM_MMIO_BASE + (locality << 12) \
-			       + TPM_CRB_DATA_BUFFER_OFFSET);
+		b->head = _p(TPM_MMIO_BASE + (locality << 12) +
+			     TPM_CRB_DATA_BUFFER_OFFSET);
 		b->truesize = TPM_CRB_DATA_BUFFER_SIZE;
 		break;
 	case TPM_UEFI:
@@ -222,22 +222,22 @@ void free_tpmbuff(struct tpmbuff *b, enum tpm_hw_intf intf)
 
 static u8 tpm_read8(u32 field)
 {
-	return ioread8((void*)(u64)(TPM_MMIO_BASE | field));
+	return ioread8(_p(TPM_MMIO_BASE | field));
 }
 
 static void tpm_write8(unsigned char val, u32 field)
 {
-	iowrite8((void*)(u64)(TPM_MMIO_BASE | field), val);
+	iowrite8(_p(TPM_MMIO_BASE | field), val);
 }
 
 static u32 tpm_read32(u32 field)
 {
-	return ioread32((void*)(u64)(TPM_MMIO_BASE | field));
+	return ioread32(_p(TPM_MMIO_BASE | field));
 }
 
 static void tpm_write32(u32 val, u32 field)
 {
-	iowrite32((void*)(u64)(TPM_MMIO_BASE | field), val);
+	iowrite32(_p(TPM_MMIO_BASE | field), val);
 }
 
 /*** tis.c ***/
