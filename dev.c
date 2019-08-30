@@ -60,55 +60,28 @@ u32 dev_locate(void)
 u32 dev_load_map(u32 dev, u32 dev_bitmap_paddr)
 {
 	u8 i;
-	/* since work with each reg one at a time, consolidate into a
-	 * single reg variable to reduce stack usage
-	 */
-	u32 dev_map;
 	u32 dev_cap;
-	u32 dev_base_lo;
-	u32 dev_cr;
 
 	dev_cap = dev_read(dev, DEV_CAP, 0);
 
 	/* disable all the DEV maps. */
-	dev_map &= !DEV_MAP_V0_MASK;
-	dev_map &= !DEV_MAP_V1_MASK;
-
 	for (i = 0; i < DEV_CAP_MAPS(dev_cap); i++)
-		dev_write(dev, DEV_MAP, i, dev_map);
-
+		dev_write(dev, DEV_MAP, i, 0);
 
 	/* set the DEV_BASE_HI and DEV_BASE_LO registers of domain 0 */
 	/* DEV bitmap is within 4GB physical */
 	dev_write(dev, DEV_BASE_HI, 0, 0);
-
-	dev_base_lo = 0;
-	dev_base_lo &= DEV_BASE_LO_VALID_MASK;
-	dev_base_lo &= !DEV_BASE_LO_PROTECTED_MASK;
-
-	/* since already zeroed out, no need to set to zero */
-	/* dev_base_lo = DEV_BASE_LO_SET_SIZE(dev_base_lo,0) */
-
-	dev_base_lo &= (DEV_BASE_LO_ADDR_MASK & dev_bitmap_paddr);
-
-	dev_write(dev, DEV_BASE_LO, 0, dev_base_lo);
+	dev_write(dev, DEV_BASE_LO, 0,
+		  dev_bitmap_paddr | DEV_BASE_LO_VALID_MASK);
 
 	/* invalidate all other domains */
-	dev_base_lo &= !DEV_BASE_LO_VALID_MASK;
-	dev_base_lo &= !DEV_BASE_LO_ADDR_MASK;
-
 	for (i = 1; i < DEV_CAP_MAPS(dev_cap); i++)
-	{
-		dev_write(dev, DEV_BASE_HI, i, 0);
-		dev_write(dev, DEV_BASE_LO, i, dev_base_lo);
-	}
+		dev_write(dev, DEV_BASE_LO, i, 0);
 
 	/* enable DEV protections */
-	dev_cr = 0;
-	dev_cr |= (DEV_CR_ENABLE_MASK | DEV_CR_IOSP_EN_MASK |
-			DEV_CR_SL_DEV_EN_MASK);
-
-	dev_write(dev, DEV_CR, 0, dev_cr);
+	dev_write(dev, DEV_CR, 0,
+		  DEV_CR_ENABLE_MASK | DEV_CR_IOSP_EN_MASK |
+		  DEV_CR_SL_DEV_EN_MASK);
 
 	return 0;
 }
