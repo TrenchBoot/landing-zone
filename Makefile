@@ -12,7 +12,7 @@ endif
 # non-pie as all relocations are internal and there is no dynamic loader to
 # help.
 CFLAGS  += -Os -g -MMD -MP -mno-sse -mno-mmx -fpie -fomit-frame-pointer
-CFLAGS  += -Iinclude -ffreestanding -Wall
+CFLAGS  += -Iinclude -ffreestanding -Wall -Werror
 LDFLAGS += -nostdlib -no-pie -Wl,--build-id=none
 
 # Derive AFLAGS from CFLAGS

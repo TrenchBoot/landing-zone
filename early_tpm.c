@@ -60,18 +60,6 @@ static void duration_a(void)
 	tpm_udelay(20000);
 }
 
-/* TPM Duration B: 750ms */
-static void duration_b(void)
-{
-	tpm_udelay(750000);
-}
-
-/* TPM Duration C: 1000ms */
-static void duration_c(void)
-{
-	tpm_udelay(1000000);
-}
-
 /* Timeouts defined in Table 16 of the PTP */
 
 /* TPM Timeout A: 750ms */
@@ -583,18 +571,6 @@ static u8 is_idle(void)
 	return 0;
 }
 
-static u8 is_ready(void)
-{
-	struct tpm_crb_ctrl_sts ctl_sts;
-
-	ctl_sts.val = tpm_read32(REGISTER(locality,TPM_CRB_CTRL_STS));
-	if (ctl_sts.tpm_idle == 1) {
-		return 0;
-	}
-
-	return 1;
-}
-
 static u8 is_cmd_exec(void)
 {
 	u32 ctrl_start;
@@ -1025,7 +1001,7 @@ err:
 	return NULL;
 }
 
-u8 tpm_request_locality(struct tpm *t, u8 l)
+void tpm_request_locality(struct tpm *t, u8 l)
 {
 	switch (t->intf) {
 	case TPM_DEVNODE:
