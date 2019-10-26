@@ -1002,20 +1002,25 @@ err:
 
 void tpm_request_locality(struct tpm *t, u8 l)
 {
+	/* Just in case of errors return non valid value */
+	u8 locality = TPM_MAX_LOCALITY + 1;
+
 	switch (t->intf) {
 	case TPM_DEVNODE:
 		/* Not implemented yet */
 		break;
 	case TPM_TIS:
-		tis_request_locality(l);
+		locality = tis_request_locality(l);
 		break;
 	case TPM_CRB:
-		crb_request_locality(l);
+		locality = crb_request_locality(l);
 		break;
 	case TPM_UEFI:
 		/* Not implemented yet */
 		break;
 	}
+
+	return locality;
 }
 
 void tpm_relinquish_locality(struct tpm *t)
