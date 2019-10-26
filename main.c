@@ -24,10 +24,12 @@
 #include <dev.h>
 #include <tpm.h>
 #include <sha1sum.h>
+#include <sha256.h>
 
 static u8 __page_data dev_table[3 * PAGE_SIZE];
 
 static SHA1_CONTEXT sha1ctx;
+static u8 sha256_hash[SHA256_DIGEST_SIZE];
 
 static void print_char(char c)
 {
@@ -218,6 +220,12 @@ asm_return_t lz_main(void)
 	print("shasum calculated:\n");
 	hexdump(sha1ctx.buf, 20);
 	tpm_extend_pcr(tpm, 17, TPM_HASH_ALG_SHA1, &sha1ctx.buf[0]);
+	print("PCR extended\n");
+
+	sha256sum(sha256_hash, data, size);
+	print("shasum calculated:\n");
+	hexdump(sha256_hash, SHA256_DIGEST_SIZE);
+	tpm_extend_pcr(tpm, 17, TPM_HASH_ALG_SHA256, &sha256_hash[0]);
 	print("PCR extended\n");
 
 	tpm_relinquish_locality(tpm);
