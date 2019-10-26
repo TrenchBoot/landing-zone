@@ -27,7 +27,7 @@ static inline u32 cpu_to_be32(u32 val)
 	return get_unaligned_be32((const void*)(u64)&val);
 }
 
-static inline u32 cpu_to_be32(u64 val)
+static inline u64 cpu_to_be64(u64 val)
 {
 	return get_unaligned_be64((const void*)(u64)&val);
 }
