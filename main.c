@@ -216,17 +216,20 @@ asm_return_t lz_main(void)
 	data = (u32*)(uintptr_t)*code32_start;
 	print_p(data);
 	size = (*(u32*)((u8*)zero_page + BP_SYSSIZE)) << 4;
-	sha1sum(&sha1ctx, data, size);
-	print("shasum calculated:\n");
-	hexdump(sha1ctx.buf, 20);
-	tpm_extend_pcr(tpm, 17, TPM_HASH_ALG_SHA1, &sha1ctx.buf[0]);
-	print("PCR extended\n");
 
-	sha256sum(sha256_hash, data, size);
-	print("shasum calculated:\n");
-	hexdump(sha256_hash, SHA256_DIGEST_SIZE);
-	tpm_extend_pcr(tpm, 17, TPM_HASH_ALG_SHA256, &sha256_hash[0]);
-	print("PCR extended\n");
+	if (tpm->family == TPM12) {
+		sha1sum(&sha1ctx, data, size);
+		print("shasum calculated:\n");
+		hexdump(sha1ctx.buf, 20);
+		tpm_extend_pcr(tpm, 17, TPM_HASH_ALG_SHA1, &sha1ctx.buf[0]);
+		print("PCR extended\n");
+	} else if (tpm->family == TPM20) {
+		sha256sum(sha256_hash, data, size);
+		print("shasum calculated:\n");
+		hexdump(sha256_hash, SHA256_DIGEST_SIZE);
+		tpm_extend_pcr(tpm, 17, TPM_HASH_ALG_SHA256, &sha256_hash[0]);
+		print("PCR extended\n");
+	}
 
 	tpm_relinquish_locality(tpm);
 	free_tpm(tpm);
