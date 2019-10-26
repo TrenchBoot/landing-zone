@@ -41,6 +41,6 @@ struct sha256_state {
 };
 
 
-void sha256sum(u8 *hash, const u8 *data, u32 len);
+void sha256sum(u8 *hash, void *data, u32 len);
 
 #endif /* SHA256_H */
