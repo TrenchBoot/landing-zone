@@ -22,6 +22,21 @@
 #include <mem.h>
 #include <sha256.h>
 
+static inline u32 cpu_to_be32(u32 val)
+{
+	return get_unaligned_be32((const void*)(u64)&val);
+}
+
+static inline u32 cpu_to_be32(u64 val)
+{
+	return get_unaligned_be64((const void*)(u64)&val);
+}
+
+static inline u32 ror32(u32 word, unsigned int shift)
+{
+	return (word >> shift) | (word << (32 - shift));
+}
+
 static inline u32 Ch(u32 x, u32 y, u32 z)
 {
 	return z ^ (x & (y ^ z));
@@ -284,12 +299,12 @@ static int sha256_final(struct sha256_state *sctx, u8 *out)
 	return 0;
 }
 
-void sha256sum(u8 *hash, const u8 *data, u32 len)
+void sha256sum(u8 *hash, void *data, u32 len)
 {
 	struct sha256_state sctx = {0};
 
 	memset(hash, 0, SHA256_DIGEST_SIZE);
 	sha256_init(&sctx);
-	sha256_update(&sctx, data, len);
+	sha256_update(&sctx, (const u8 *)data, len);
 	sha256_final(&sctx, hash);
 }
