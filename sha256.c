@@ -64,24 +64,27 @@ static inline void LOAD_OP(int I, u32 *W, const u8 *input)
 	W[I] = be32_to_cpu(((__be32 *)(input))[I]);
 }
 
-static inline void BLEND_OP(int I, u32 *W)
+static inline u32 BLEND_OP(u32 *W)
 {
-	W[I] = s1(W[I-2]) + W[I-7] + s0(W[I-15]) + W[I-16];
+	static unsigned i = 0;
+	u32 ret;
+
+	W[i] = s1(W[(i-2) & 0xf]) + W[(i-7) & 0xf] + s0(W[(i-15) & 0xf]) + W[i];
+	ret = W[i];
+	i++;
+	i &= 0xf;
+	return ret;
 }
 
 static void sha256_transform(u32 *state, const u8 *input)
 {
 	u32 a, b, c, d, e, f, g, h, t1, t2;
-	u32 W[64];
+	u32 W[16];
 	int i;
 
 	/* load the input */
 	for (i = 0; i < 16; i++)
 		LOAD_OP(i, W, input);
-
-	/* now blend */
-	for (i = 16; i < 64; i++)
-		BLEND_OP(i, W);
 
 	/* load the state into our registers */
 	a = state[0];  b = state[1];  c = state[2];  d = state[3];
@@ -122,106 +125,106 @@ static void sha256_transform(u32 *state, const u8 *input)
 	t1 = a + e1(f) + Ch(f, g, h) + 0xc19bf174 + W[15];
 	t2 = e0(b) + Maj(b, c, d);    e += t1;    a = t1+t2;
 
-	t1 = h + e1(e) + Ch(e, f, g) + 0xe49b69c1 + W[16];
+	t1 = h + e1(e) + Ch(e, f, g) + 0xe49b69c1 + BLEND_OP(W);
 	t2 = e0(a) + Maj(a, b, c);    d += t1;    h = t1+t2;
-	t1 = g + e1(d) + Ch(d, e, f) + 0xefbe4786 + W[17];
+	t1 = g + e1(d) + Ch(d, e, f) + 0xefbe4786 + BLEND_OP(W);
 	t2 = e0(h) + Maj(h, a, b);    c += t1;    g = t1+t2;
-	t1 = f + e1(c) + Ch(c, d, e) + 0x0fc19dc6 + W[18];
+	t1 = f + e1(c) + Ch(c, d, e) + 0x0fc19dc6 + BLEND_OP(W);
 	t2 = e0(g) + Maj(g, h, a);    b += t1;    f = t1+t2;
-	t1 = e + e1(b) + Ch(b, c, d) + 0x240ca1cc + W[19];
+	t1 = e + e1(b) + Ch(b, c, d) + 0x240ca1cc + BLEND_OP(W);
 	t2 = e0(f) + Maj(f, g, h);    a += t1;    e = t1+t2;
-	t1 = d + e1(a) + Ch(a, b, c) + 0x2de92c6f + W[20];
+	t1 = d + e1(a) + Ch(a, b, c) + 0x2de92c6f + BLEND_OP(W);
 	t2 = e0(e) + Maj(e, f, g);    h += t1;    d = t1+t2;
-	t1 = c + e1(h) + Ch(h, a, b) + 0x4a7484aa + W[21];
+	t1 = c + e1(h) + Ch(h, a, b) + 0x4a7484aa + BLEND_OP(W);
 	t2 = e0(d) + Maj(d, e, f);    g += t1;    c = t1+t2;
-	t1 = b + e1(g) + Ch(g, h, a) + 0x5cb0a9dc + W[22];
+	t1 = b + e1(g) + Ch(g, h, a) + 0x5cb0a9dc + BLEND_OP(W);
 	t2 = e0(c) + Maj(c, d, e);    f += t1;    b = t1+t2;
-	t1 = a + e1(f) + Ch(f, g, h) + 0x76f988da + W[23];
+	t1 = a + e1(f) + Ch(f, g, h) + 0x76f988da + BLEND_OP(W);
 	t2 = e0(b) + Maj(b, c, d);    e += t1;    a = t1+t2;
 
-	t1 = h + e1(e) + Ch(e, f, g) + 0x983e5152 + W[24];
+	t1 = h + e1(e) + Ch(e, f, g) + 0x983e5152 + BLEND_OP(W);
 	t2 = e0(a) + Maj(a, b, c);    d += t1;    h = t1+t2;
-	t1 = g + e1(d) + Ch(d, e, f) + 0xa831c66d + W[25];
+	t1 = g + e1(d) + Ch(d, e, f) + 0xa831c66d + BLEND_OP(W);
 	t2 = e0(h) + Maj(h, a, b);    c += t1;    g = t1+t2;
-	t1 = f + e1(c) + Ch(c, d, e) + 0xb00327c8 + W[26];
+	t1 = f + e1(c) + Ch(c, d, e) + 0xb00327c8 + BLEND_OP(W);
 	t2 = e0(g) + Maj(g, h, a);    b += t1;    f = t1+t2;
-	t1 = e + e1(b) + Ch(b, c, d) + 0xbf597fc7 + W[27];
+	t1 = e + e1(b) + Ch(b, c, d) + 0xbf597fc7 + BLEND_OP(W);
 	t2 = e0(f) + Maj(f, g, h);    a += t1;    e = t1+t2;
-	t1 = d + e1(a) + Ch(a, b, c) + 0xc6e00bf3 + W[28];
+	t1 = d + e1(a) + Ch(a, b, c) + 0xc6e00bf3 + BLEND_OP(W);
 	t2 = e0(e) + Maj(e, f, g);    h += t1;    d = t1+t2;
-	t1 = c + e1(h) + Ch(h, a, b) + 0xd5a79147 + W[29];
+	t1 = c + e1(h) + Ch(h, a, b) + 0xd5a79147 + BLEND_OP(W);
 	t2 = e0(d) + Maj(d, e, f);    g += t1;    c = t1+t2;
-	t1 = b + e1(g) + Ch(g, h, a) + 0x06ca6351 + W[30];
+	t1 = b + e1(g) + Ch(g, h, a) + 0x06ca6351 + BLEND_OP(W);
 	t2 = e0(c) + Maj(c, d, e);    f += t1;    b = t1+t2;
-	t1 = a + e1(f) + Ch(f, g, h) + 0x14292967 + W[31];
+	t1 = a + e1(f) + Ch(f, g, h) + 0x14292967 + BLEND_OP(W);
 	t2 = e0(b) + Maj(b, c, d);    e += t1;    a = t1+t2;
 
-	t1 = h + e1(e) + Ch(e, f, g) + 0x27b70a85 + W[32];
+	t1 = h + e1(e) + Ch(e, f, g) + 0x27b70a85 + BLEND_OP(W);
 	t2 = e0(a) + Maj(a, b, c);    d += t1;    h = t1+t2;
-	t1 = g + e1(d) + Ch(d, e, f) + 0x2e1b2138 + W[33];
+	t1 = g + e1(d) + Ch(d, e, f) + 0x2e1b2138 + BLEND_OP(W);
 	t2 = e0(h) + Maj(h, a, b);    c += t1;    g = t1+t2;
-	t1 = f + e1(c) + Ch(c, d, e) + 0x4d2c6dfc + W[34];
+	t1 = f + e1(c) + Ch(c, d, e) + 0x4d2c6dfc + BLEND_OP(W);
 	t2 = e0(g) + Maj(g, h, a);    b += t1;    f = t1+t2;
-	t1 = e + e1(b) + Ch(b, c, d) + 0x53380d13 + W[35];
+	t1 = e + e1(b) + Ch(b, c, d) + 0x53380d13 + BLEND_OP(W);
 	t2 = e0(f) + Maj(f, g, h);    a += t1;    e = t1+t2;
-	t1 = d + e1(a) + Ch(a, b, c) + 0x650a7354 + W[36];
+	t1 = d + e1(a) + Ch(a, b, c) + 0x650a7354 + BLEND_OP(W);
 	t2 = e0(e) + Maj(e, f, g);    h += t1;    d = t1+t2;
-	t1 = c + e1(h) + Ch(h, a, b) + 0x766a0abb + W[37];
+	t1 = c + e1(h) + Ch(h, a, b) + 0x766a0abb + BLEND_OP(W);
 	t2 = e0(d) + Maj(d, e, f);    g += t1;    c = t1+t2;
-	t1 = b + e1(g) + Ch(g, h, a) + 0x81c2c92e + W[38];
+	t1 = b + e1(g) + Ch(g, h, a) + 0x81c2c92e + BLEND_OP(W);
 	t2 = e0(c) + Maj(c, d, e);    f += t1;    b = t1+t2;
-	t1 = a + e1(f) + Ch(f, g, h) + 0x92722c85 + W[39];
+	t1 = a + e1(f) + Ch(f, g, h) + 0x92722c85 + BLEND_OP(W);
 	t2 = e0(b) + Maj(b, c, d);    e += t1;    a = t1+t2;
 
-	t1 = h + e1(e) + Ch(e, f, g) + 0xa2bfe8a1 + W[40];
+	t1 = h + e1(e) + Ch(e, f, g) + 0xa2bfe8a1 + BLEND_OP(W);
 	t2 = e0(a) + Maj(a, b, c);    d += t1;    h = t1+t2;
-	t1 = g + e1(d) + Ch(d, e, f) + 0xa81a664b + W[41];
+	t1 = g + e1(d) + Ch(d, e, f) + 0xa81a664b + BLEND_OP(W);
 	t2 = e0(h) + Maj(h, a, b);    c += t1;    g = t1+t2;
-	t1 = f + e1(c) + Ch(c, d, e) + 0xc24b8b70 + W[42];
+	t1 = f + e1(c) + Ch(c, d, e) + 0xc24b8b70 + BLEND_OP(W);
 	t2 = e0(g) + Maj(g, h, a);    b += t1;    f = t1+t2;
-	t1 = e + e1(b) + Ch(b, c, d) + 0xc76c51a3 + W[43];
+	t1 = e + e1(b) + Ch(b, c, d) + 0xc76c51a3 + BLEND_OP(W);
 	t2 = e0(f) + Maj(f, g, h);    a += t1;    e = t1+t2;
-	t1 = d + e1(a) + Ch(a, b, c) + 0xd192e819 + W[44];
+	t1 = d + e1(a) + Ch(a, b, c) + 0xd192e819 + BLEND_OP(W);
 	t2 = e0(e) + Maj(e, f, g);    h += t1;    d = t1+t2;
-	t1 = c + e1(h) + Ch(h, a, b) + 0xd6990624 + W[45];
+	t1 = c + e1(h) + Ch(h, a, b) + 0xd6990624 + BLEND_OP(W);
 	t2 = e0(d) + Maj(d, e, f);    g += t1;    c = t1+t2;
-	t1 = b + e1(g) + Ch(g, h, a) + 0xf40e3585 + W[46];
+	t1 = b + e1(g) + Ch(g, h, a) + 0xf40e3585 + BLEND_OP(W);
 	t2 = e0(c) + Maj(c, d, e);    f += t1;    b = t1+t2;
-	t1 = a + e1(f) + Ch(f, g, h) + 0x106aa070 + W[47];
+	t1 = a + e1(f) + Ch(f, g, h) + 0x106aa070 + BLEND_OP(W);
 	t2 = e0(b) + Maj(b, c, d);    e += t1;    a = t1+t2;
 
-	t1 = h + e1(e) + Ch(e, f, g) + 0x19a4c116 + W[48];
+	t1 = h + e1(e) + Ch(e, f, g) + 0x19a4c116 + BLEND_OP(W);
 	t2 = e0(a) + Maj(a, b, c);    d += t1;    h = t1+t2;
-	t1 = g + e1(d) + Ch(d, e, f) + 0x1e376c08 + W[49];
+	t1 = g + e1(d) + Ch(d, e, f) + 0x1e376c08 + BLEND_OP(W);
 	t2 = e0(h) + Maj(h, a, b);    c += t1;    g = t1+t2;
-	t1 = f + e1(c) + Ch(c, d, e) + 0x2748774c + W[50];
+	t1 = f + e1(c) + Ch(c, d, e) + 0x2748774c + BLEND_OP(W);
 	t2 = e0(g) + Maj(g, h, a);    b += t1;    f = t1+t2;
-	t1 = e + e1(b) + Ch(b, c, d) + 0x34b0bcb5 + W[51];
+	t1 = e + e1(b) + Ch(b, c, d) + 0x34b0bcb5 + BLEND_OP(W);
 	t2 = e0(f) + Maj(f, g, h);    a += t1;    e = t1+t2;
-	t1 = d + e1(a) + Ch(a, b, c) + 0x391c0cb3 + W[52];
+	t1 = d + e1(a) + Ch(a, b, c) + 0x391c0cb3 + BLEND_OP(W);
 	t2 = e0(e) + Maj(e, f, g);    h += t1;    d = t1+t2;
-	t1 = c + e1(h) + Ch(h, a, b) + 0x4ed8aa4a + W[53];
+	t1 = c + e1(h) + Ch(h, a, b) + 0x4ed8aa4a + BLEND_OP(W);
 	t2 = e0(d) + Maj(d, e, f);    g += t1;    c = t1+t2;
-	t1 = b + e1(g) + Ch(g, h, a) + 0x5b9cca4f + W[54];
+	t1 = b + e1(g) + Ch(g, h, a) + 0x5b9cca4f + BLEND_OP(W);
 	t2 = e0(c) + Maj(c, d, e);    f += t1;    b = t1+t2;
-	t1 = a + e1(f) + Ch(f, g, h) + 0x682e6ff3 + W[55];
+	t1 = a + e1(f) + Ch(f, g, h) + 0x682e6ff3 + BLEND_OP(W);
 	t2 = e0(b) + Maj(b, c, d);    e += t1;    a = t1+t2;
 
-	t1 = h + e1(e) + Ch(e, f, g) + 0x748f82ee + W[56];
+	t1 = h + e1(e) + Ch(e, f, g) + 0x748f82ee + BLEND_OP(W);
 	t2 = e0(a) + Maj(a, b, c);    d += t1;    h = t1+t2;
-	t1 = g + e1(d) + Ch(d, e, f) + 0x78a5636f + W[57];
+	t1 = g + e1(d) + Ch(d, e, f) + 0x78a5636f + BLEND_OP(W);
 	t2 = e0(h) + Maj(h, a, b);    c += t1;    g = t1+t2;
-	t1 = f + e1(c) + Ch(c, d, e) + 0x84c87814 + W[58];
+	t1 = f + e1(c) + Ch(c, d, e) + 0x84c87814 + BLEND_OP(W);
 	t2 = e0(g) + Maj(g, h, a);    b += t1;    f = t1+t2;
-	t1 = e + e1(b) + Ch(b, c, d) + 0x8cc70208 + W[59];
+	t1 = e + e1(b) + Ch(b, c, d) + 0x8cc70208 + BLEND_OP(W);
 	t2 = e0(f) + Maj(f, g, h);    a += t1;    e = t1+t2;
-	t1 = d + e1(a) + Ch(a, b, c) + 0x90befffa + W[60];
+	t1 = d + e1(a) + Ch(a, b, c) + 0x90befffa + BLEND_OP(W);
 	t2 = e0(e) + Maj(e, f, g);    h += t1;    d = t1+t2;
-	t1 = c + e1(h) + Ch(h, a, b) + 0xa4506ceb + W[61];
+	t1 = c + e1(h) + Ch(h, a, b) + 0xa4506ceb + BLEND_OP(W);
 	t2 = e0(d) + Maj(d, e, f);    g += t1;    c = t1+t2;
-	t1 = b + e1(g) + Ch(g, h, a) + 0xbef9a3f7 + W[62];
+	t1 = b + e1(g) + Ch(g, h, a) + 0xbef9a3f7 + BLEND_OP(W);
 	t2 = e0(c) + Maj(c, d, e);    f += t1;    b = t1+t2;
-	t1 = a + e1(f) + Ch(f, g, h) + 0xc67178f2 + W[63];
+	t1 = a + e1(f) + Ch(f, g, h) + 0xc67178f2 + BLEND_OP(W);
 	t2 = e0(b) + Maj(b, c, d);    e += t1;    a = t1+t2;
 
 	state[0] += a; state[1] += b; state[2] += c; state[3] += d;
@@ -229,7 +232,7 @@ static void sha256_transform(u32 *state, const u8 *input)
 
 	/* clear any sensitive info... */
 	a = b = c = d = e = f = g = h = t1 = t2 = 0;
-	memset(W, 0, 64 * sizeof(u32));
+	memset(W, 0, 16 * sizeof(u32));
 }
 
 static int sha256_init(struct sha256_state *sctx)
