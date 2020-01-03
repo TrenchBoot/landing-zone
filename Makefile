@@ -2,6 +2,10 @@
 CFLAGS  :=
 LDFLAGS :=
 
+ifeq ($(DEBUG),y)
+CFLAGS  += -DDEBUG
+endif
+
 ifeq ($(LTO),y)
 CFLAGS  += -flto
 LDFLAGS += -flto

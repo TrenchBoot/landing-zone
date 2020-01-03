@@ -31,6 +31,7 @@ static u8 __page_data dev_table[3 * PAGE_SIZE];
 static SHA1_CONTEXT sha1ctx;
 static u8 sha256_hash[SHA256_DIGEST_SIZE];
 
+#ifdef DEBUG
 static void print_char(char c)
 {
 	while ( !(inb(0x3f8 + 5) & 0x20) )
@@ -39,7 +40,7 @@ static void print_char(char c)
 	outb(0x3f8, c);
 }
 
-static void print(char * txt) {
+static void print(const char * txt) {
 	while (*txt != '\0') {
 		if (*txt == '\n')
 			print_char('\r');
@@ -137,6 +138,10 @@ void hexdump(const void *memory, size_t length)
 		}
 	}
 }
+#else
+static void print(const char * unused) { }
+static void hexdump(const void *unused, size_t unused2) { }
+#endif
 
 /*
  * Function return ABI magic:
@@ -212,9 +217,7 @@ asm_return_t lz_main(void)
 	tpm_request_locality(tpm, 2);
 
 	/* extend TB Loader code segment into PCR17 */
-	print("TPM extending ");
 	data = (u32*)(uintptr_t)*code32_start;
-	print_p(data);
 	size = (*(u32*)((u8*)zero_page + BP_SYSSIZE)) << 4;
 
 	if (tpm->family == TPM12) {
