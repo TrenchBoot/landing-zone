@@ -20,6 +20,7 @@
  */
 
 #include <defs.h>
+#include <iommu_defs.h>
 
 /* Selectors, CS and SS compatible with initial state after SKINIT */
 #define CS_SEL32         0x0008
@@ -216,10 +217,9 @@ ENDDATA(gdtr)
 .Lgdt_end:
 ENDDATA(gdt)
 
+.section .page_data, "a", @progbits
+.align PAGE_SIZE
 #ifdef __x86_64__
-	.section .page_data, "a", @progbits
-	.align PAGE_SIZE
-
 	/* 64bit Pagetables, identity map of the first 4G of RAM. */
 
 l1_identmap: /* 1x L1 page, mapping 2M of RAM.  No relocations. */
@@ -253,6 +253,23 @@ l4_identmap: /* 1x L4 page, mapping the L3 page. 1 relocation. */
 	.align PAGE_SIZE
 ENDDATA(l4_identmap)
 #endif
+
+GLOBAL(command_buf)
+	.fill PAGE_SIZE
+ENDDATA(command_buf)
+
+GLOBAL(event_log)
+	.fill PAGE_SIZE
+ENDDATA(event_log)
+
+GLOBAL(device_table)
+	.rept (256)
+	.quad IOMMU_DTE_Q0_V + IOMMU_DTE_Q0_TV
+	.quad 0
+	.quad 0 /* IOMMU_DTE_Q2_IV + IOMMU_DTE_Q2_IG */
+	.quad 0
+	.endr
+ENDDATA(device_table)
 
 	.section .bootloader_data, "a", @progbits
 
