@@ -27,8 +27,11 @@
 
 #define PCI_CAPABILITY_LIST     0x34    /* Offset of first capability list entry */
 
-/* PCI capability ID for SVM DEV - AMD Manual */
+/* PCI capability ID for IOMMU and SVM DEV - AMD Manual */
 #define PCI_CAPABILITIES_POINTER_ID_DEV    0x0F
+
+#define PCI_CAP_ID(c)		((c) & 0xFF)
+#define PCI_CAP_PTR(c)		(((c) >> 8) & 0xFF)
 
 /* From include/uapi/linux/pci.h */
 
