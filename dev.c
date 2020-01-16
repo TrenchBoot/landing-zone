@@ -25,9 +25,10 @@ u32 dev_locate(void)
 	u32 pci_cap_id;
 
 	/* read capabilities pointer */
-	pci_cap_ptr = pci_read32(DEV_PCI_BUS,
-				 PCI_DEVFN(DEV_PCI_DEVICE, DEV_PCI_FUNCTION),
-				 PCI_CAPABILITY_LIST);
+        pci_read(0, DEV_PCI_BUS,
+			PCI_DEVFN(DEV_PCI_DEVICE,DEV_PCI_FUNCTION),
+			PCI_CAPABILITY_LIST,
+			4, &pci_cap_ptr);
 
 	if (INVALID_CAP(pci_cap_ptr))
 		return 0;
@@ -36,21 +37,21 @@ u32 dev_locate(void)
 
 	while (pci_cap_ptr != 0)
 	{
-		pci_cap_id = pci_read8(DEV_PCI_BUS,
-				       PCI_DEVFN(DEV_PCI_DEVICE,
-						 DEV_PCI_FUNCTION),
-				       pci_cap_ptr);
+		pci_read(0, DEV_PCI_BUS,
+				PCI_DEVFN(DEV_PCI_DEVICE,DEV_PCI_FUNCTION),
+				pci_cap_ptr,
+				1, &pci_cap_id);
 
 		if (pci_cap_id == PCI_CAPABILITIES_POINTER_ID_DEV)
 			break;
 
-		pci_cap_ptr = pci_read8(DEV_PCI_BUS,
-					PCI_DEVFN(DEV_PCI_DEVICE,
-						  DEV_PCI_FUNCTION),
-					pci_cap_ptr);
+		pci_read(0, DEV_PCI_BUS,
+				PCI_DEVFN(DEV_PCI_DEVICE,DEV_PCI_FUNCTION),
+				pci_cap_ptr,
+				1, &pci_cap_ptr);
 	}
 
-	if (INVALID_CAP(pci_cap_ptr))
+        if (INVALID_CAP(pci_cap_ptr))
                 return 0;
 
 	return pci_cap_ptr;
