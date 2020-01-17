@@ -48,6 +48,19 @@ SECTIONS
 		*(.page_data)
 	}
 
+	. = ALIGN(8);
+	_sl_end = .;
+
+	/*
+	 * Bootloader must pass non-constant data (e.g. address of zeropage). Keep
+	 * it in separate section, outside of measured part of SL. This must be
+	 * done in order to keep hashes constant, it also allows us to measure SL
+	 * offline.
+	 */
+	.bootloader_data : {
+		*(.bootloader_data)
+	}
+
 	_end = .;
 
 	/DISCARD/ : {

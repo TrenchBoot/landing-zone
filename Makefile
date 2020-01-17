@@ -42,10 +42,8 @@ all: lz_header.bin
 # image.  One reason this might fail is if the linker decides to put an
 # unreferenced section ahead of .text, in which case link.lds needs adjusting.
 lz_header.bin: lz_header Makefile
-	objcopy -O binary -S --pad-to 0x10000 $< $@
-	@od --format=x8 --skip-bytes=4 --read-bytes=16 $@ | \
-		grep "0000004 e91192048e26f178 02ccc4765bc82a83" > /dev/null || \
-		{ echo "ERROR: LZ UUID missing or misplaced in $@" >&2; false; }
+	objcopy -O binary -S $< $@
+	@./sanity_check.sh
 
 lz_header: link.lds $(OBJ) Makefile
 	$(CC) -Wl,-T,link.lds $(LDFLAGS) $(OBJ) -o $@
