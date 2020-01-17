@@ -56,6 +56,7 @@
 
 /* Boot Params */
 #define BP_TB_DEV_MAP    0x0d8
+#define BP_SYSSIZE       0x1f4
 #define BP_CODE32_START  0x214
 #define BP_CMD_LINE_PTR  0x228
 #define BP_CMDLINE_SIZE  0x238
