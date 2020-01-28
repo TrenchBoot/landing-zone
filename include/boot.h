@@ -43,10 +43,6 @@ typedef struct __packed sl_header {
 	u16 lz_offet;
 	u16 lz_length;
 } sl_header_t;
-extern sl_header_t sl_header;
-
-/* The base of Landing Zone is in practice the Secure Launch header. */
-#define lz_base ((void *)&sl_header)
 
 typedef struct __packed lz_header {
 	u8  uuid[16]; /* 78 f1 26 8e 04 92 11 e9  83 2a c8 5b 76 c4 cc 02 */
@@ -54,7 +50,14 @@ typedef struct __packed lz_header {
 	u32 zero_page_addr;
 	u8  msb_key_hash[20];
 } lz_header_t;
+
+#pragma GCC visibility push(hidden)
+extern sl_header_t sl_header;
 extern lz_header_t lz_header;
+#pragma GCC visibility pop
+
+/* The base of Landing Zone is in practice the Secure Launch header. */
+#define lz_base ((void *)&sl_header)
 
 /* Fences */
 #define mb()		asm volatile("mfence" : : : "memory")
