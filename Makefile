@@ -8,7 +8,7 @@ LDFLAGS += -flto
 endif
 
 ifeq ($(32),y)
-CFLAGS  += -m32 -fvisibility=hidden -fno-plt -freg-struct-return
+CFLAGS  += -m32 -fno-plt -freg-struct-return
 LDFLAGS += -m32
 else
 CFLAGS  += -m64
