@@ -48,6 +48,12 @@ SECTIONS
 		*(.page_data)
 	}
 
+	_got_start = .;
+	.got : {
+		*(.got)
+	}
+	_got_end = .;
+
 	_end = .;
 
 	/DISCARD/ : {
@@ -56,3 +62,4 @@ SECTIONS
 }
 
 ASSERT(_end <= 0x10000, "Landing Zone exceeds 64k");
+ASSERT(_got_start == _got_end, "Got GOT, extern variables used?");
