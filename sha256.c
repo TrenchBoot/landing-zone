@@ -311,7 +311,7 @@ static int sha256_final(struct sha256_state *sctx, u8 *out)
 
 void sha256sum(u8 *hash, void *data, u32 len)
 {
-	struct sha256_state sctx = {0};
+	struct sha256_state sctx = {};
 
 	memset(hash, 0, SHA256_DIGEST_SIZE);
 	sha256_init(&sctx);
