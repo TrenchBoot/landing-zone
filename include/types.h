@@ -49,10 +49,6 @@ typedef unsigned long long	uint64_t;
 #define max(x,y) ({ \
 	x > y ? x : y; })
 
-#define be32_to_cpu(x) ( \
-	((x) >> 24) | (((x) & 0x00FF0000) >> 8) | \
-	(((x) & 0x0000FF00) << 8) | ((x) << 24))
-
 /*
  * Local declaration of bits of libc
  *

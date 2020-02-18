@@ -15,6 +15,7 @@
  * any later version.
  */
 
+#include <byteswap.h>
 #include <defs.h>
 #include <types.h>
 #include <errno-base.h>
@@ -22,22 +23,6 @@
 
 typedef u32 __be32;
 typedef u64 __be64;
-
-static inline u32 cpu_to_be32(u32 val)
-{
-	u8 a = val, b = val >> 8, c = val >> 16, d = val >> 24;
-
-	return ((u32)a << 24) | (b << 16) | (c << 8) | d;
-}
-
-static inline u64 cpu_to_be64(u64 val)
-{
-	u8 a = val, b = val >> 8, c = val >> 16, d = val >> 24;
-	u8 e = val >> 32, f = val >> 40, g = val >> 48, h = val >> 56;
-
-	return ((u64)a << 56) | ((u64)b << 48) | ((u64)c << 40) | ((u64)d << 32) |
-	       ((u64)e << 24) | ((u64)f << 16) | ((u64)g <<  8) |  (u64)h;
-}
 
 static inline u32 ror32(u32 word, unsigned int shift)
 {
