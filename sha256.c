@@ -218,15 +218,18 @@ static void sha256_transform(u32 *state, const u8 *input)
 
 static void sha256_init(struct sha256_state *sctx)
 {
-	sctx->state[0] = SHA256_H0;
-	sctx->state[1] = SHA256_H1;
-	sctx->state[2] = SHA256_H2;
-	sctx->state[3] = SHA256_H3;
-	sctx->state[4] = SHA256_H4;
-	sctx->state[5] = SHA256_H5;
-	sctx->state[6] = SHA256_H6;
-	sctx->state[7] = SHA256_H7;
-	sctx->count = 0;
+	*sctx = (struct sha256_state){
+		.state = {
+			SHA256_H0,
+			SHA256_H1,
+			SHA256_H2,
+			SHA256_H3,
+			SHA256_H4,
+			SHA256_H5,
+			SHA256_H6,
+			SHA256_H7,
+		},
+	};
 }
 
 static void sha256_update(struct sha256_state *sctx, const u8 *data, u32 len)
@@ -283,9 +286,8 @@ static void sha256_final(struct sha256_state *sctx, u8 *out)
 
 void sha256sum(u8 *hash, void *data, u32 len)
 {
-	struct sha256_state sctx = {};
+	struct sha256_state sctx;
 
-	memset(hash, 0, SHA256_DIGEST_SIZE);
 	sha256_init(&sctx);
 	sha256_update(&sctx, (const u8 *)data, len);
 	sha256_final(&sctx, hash);

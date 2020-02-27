@@ -38,13 +38,13 @@ rol( u32 x, int n)
 static void
 sha1_init( SHA1_CONTEXT *hd )
 {
-    hd->h0 = 0x67452301;
-    hd->h1 = 0xefcdab89;
-    hd->h2 = 0x98badcfe;
-    hd->h3 = 0x10325476;
-    hd->h4 = 0xc3d2e1f0;
-    hd->nblocks = 0;
-    hd->count = 0;
+    *hd = (SHA1_CONTEXT){
+        .h0 = 0x67452301,
+        .h1 = 0xefcdab89,
+        .h2 = 0x98badcfe,
+        .h3 = 0x10325476,
+        .h4 = 0xc3d2e1f0,
+    };
 }
 
 
@@ -291,8 +291,6 @@ sha1_final(SHA1_CONTEXT *hd)
 
 void sha1sum(SHA1_CONTEXT *ctx, void *ptr, u32 len)
 {
-    memset(ctx, 0, sizeof(SHA1_CONTEXT));
-
     /* TODO not sure if we can jam the entire buffer in. The original
      * code was reading the files in in 4096 chunks. Will have to try
      * it out. For now just code it the simple way. */
