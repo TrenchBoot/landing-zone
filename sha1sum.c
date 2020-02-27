@@ -35,7 +35,7 @@ rol( u32 x, int n)
     return (x << n) | (x >> (-n & 31));
 }
 
-void
+static void
 sha1_init( SHA1_CONTEXT *hd )
 {
     hd->h0 = 0x67452301;
