@@ -214,13 +214,9 @@ static void sha256_transform(u32 *state, const u8 *input)
 
 	state[0] += a; state[1] += b; state[2] += c; state[3] += d;
 	state[4] += e; state[5] += f; state[6] += g; state[7] += h;
-
-	/* clear any sensitive info... */
-	a = b = c = d = e = f = g = h = t1 = t2 = 0;
-	memset(W, 0, 16 * sizeof(u32));
 }
 
-static int sha256_init(struct sha256_state *sctx)
+static void sha256_init(struct sha256_state *sctx)
 {
 	sctx->state[0] = SHA256_H0;
 	sctx->state[1] = SHA256_H1;
@@ -231,11 +227,9 @@ static int sha256_init(struct sha256_state *sctx)
 	sctx->state[6] = SHA256_H6;
 	sctx->state[7] = SHA256_H7;
 	sctx->count = 0;
-
-	return 0;
 }
 
-static int sha256_update(struct sha256_state *sctx, const u8 *data, u32 len)
+static void sha256_update(struct sha256_state *sctx, const u8 *data, u32 len)
 {
 	unsigned int partial, done;
 	const u8 *src;
@@ -261,11 +255,9 @@ static int sha256_update(struct sha256_state *sctx, const u8 *data, u32 len)
 		partial = 0;
 	}
 	memcpy(sctx->buf + partial, src, len - done);
-
-	return 0;
 }
 
-static int sha256_final(struct sha256_state *sctx, u8 *out)
+static void sha256_final(struct sha256_state *sctx, u8 *out)
 {
 	__be32 *dst = (__be32 *)out;
 	__be64 bits;
@@ -287,11 +279,6 @@ static int sha256_final(struct sha256_state *sctx, u8 *out)
 	/* Store state in digest */
 	for (i = 0; i < 8; i++)
 		dst[i] = cpu_to_be32(sctx->state[i]);
-
-	/* Zeroize sensitive information. */
-	memset(sctx, 0, sizeof(*sctx));
-
-	return 0;
 }
 
 void sha256sum(u8 *hash, void *data, u32 len)
