@@ -22,12 +22,11 @@
    Note, that this is a simple tool to be used for MS Windows.
 */
 
+#include <byteswap.h>
 #include <defs.h>
 #include <types.h>
 #include <errno-base.h>
 #include <sha1sum.h>
-
-#undef BIG_ENDIAN_HOST
 
 static inline u32
 rol( u32 x, int n)
@@ -64,19 +63,8 @@ transform( SHA1_CONTEXT *hd, unsigned char *data )
     d = hd->h3;
     e = hd->h4;
 
-#ifdef BIG_ENDIAN_HOST
-    memcpy( x, data, 64 );
-#else
-    { int i;
-      unsigned char *p2;
-      for(i=0, p2=(unsigned char*)x; i < 16; i++, p2 += 4 ) {
-	p2[3] = *data++;
-	p2[2] = *data++;
-	p2[1] = *data++;
-	p2[0] = *data++;
-      }
-    }
-#endif
+    for (int i = 0; i < 16; ++i, data += 4)
+        x[i] = cpu_to_be32(*(u32 *)data);
 
 
 #define K1  0x5A827999L
@@ -233,7 +221,6 @@ static void
 sha1_final(SHA1_CONTEXT *hd)
 {
     u32 t, msb, lsb;
-    unsigned char *p;
 
     sha1_write(hd, NULL, 0); /* flush */;
 
@@ -274,19 +261,12 @@ sha1_final(SHA1_CONTEXT *hd)
     hd->buf[63] = lsb	   ;
     transform( hd, hd->buf );
 
-    p = hd->buf;
-#ifdef BIG_ENDIAN_HOST
-#define X(a) do { *(u32*)p = hd->h##a ; p += 4; } while(0)
-#else /* little endian */
-#define X(a) do { *p++ = hd->h##a >> 24; *p++ = hd->h##a >> 16;	 \
-		      *p++ = hd->h##a >> 8; *p++ = hd->h##a; } while(0)
-#endif
-    X(0);
-    X(1);
-    X(2);
-    X(3);
-    X(4);
-#undef X
+    u32 *p = (void *)hd->buf;
+    *p++ = be32_to_cpu(hd->h0);
+    *p++ = be32_to_cpu(hd->h1);
+    *p++ = be32_to_cpu(hd->h2);
+    *p++ = be32_to_cpu(hd->h3);
+    *p++ = be32_to_cpu(hd->h4);
 }
 
 void sha1sum(SHA1_CONTEXT *ctx, void *ptr, u32 len)
