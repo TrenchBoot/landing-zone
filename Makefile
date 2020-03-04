@@ -23,7 +23,7 @@ endif
 # at an arbitray location, so build it as position independent, but link as
 # non-pie as all relocations are internal and there is no dynamic loader to
 # help.
-CFLAGS  += -Os -g -MMD -MP -mno-sse -mno-mmx -fpie -fomit-frame-pointer
+CFLAGS  += -Os -g -MMD -MP -march=btver2 -mno-sse -mno-mmx -fpie -fomit-frame-pointer
 CFLAGS  += -Iinclude -ffreestanding -Wall -Werror
 LDFLAGS += -nostdlib -no-pie -Wl,--build-id=none
 
