@@ -30,9 +30,12 @@ LDFLAGS += -nostdlib -no-pie -Wl,--build-id=none
 # Derive AFLAGS from CFLAGS
 AFLAGS := -D__ASSEMBLY__ $(filter-out -std=%,$(CFLAGS))
 
-# Collect objects for building.  For simplicity, we take all ASM/C files
+ALL_SRC := $(wildcard *.c)
+TESTS := $(filter test-%,$(ALL_SRC:.c=))
+
+# Collect objects for building.  For simplicity, we take all ASM/C files except tests
 ASM := $(wildcard *.S)
-SRC := $(wildcard *.c)
+SRC := $(filter-out test-%,$(ALL_SRC))
 OBJ := $(ASM:.S=.o) $(SRC:.c=.o)
 
 .PHONY: all
@@ -64,6 +67,19 @@ lz_header: link.lds $(OBJ) Makefile
 %.S: %.c Makefile
 	$(CC) $(CFLAGS) -S $< -o $@
 
+# Helpers for building and running tests on the current host
+test-%: test-%.c Makefile
+	$(CC) $(filter-out -ffreestanding -march%,$(CFLAGS)) $< -o $@
+
+.PHONY: run-test-%
+.SECONDARY:
+run-test-%: test-% Makefile
+	./$<
+
+# Wrapper for building and running every test-*.c we find.
+.PHONY: tests
+tests: $(addprefix run-,$(TESTS))
+
 .PHONY: cscope
 cscope:
 	find . -name "*.[hcsS]" > cscope.files
@@ -71,7 +87,7 @@ cscope:
 
 .PHONY: clean
 clean:
-	rm -f lz_header.bin lz_header *.d *.o cscope.*
+	rm -f lz_header.bin lz_header $(TESTS) *.d *.o cscope.*
 
 # Compiler-generated header dependencies.  Should be last.
--include $(OBJ:.o=.d)
+-include $(OBJ:.o=.d) $(TESTS:=.d)
