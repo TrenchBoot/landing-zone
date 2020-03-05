@@ -218,12 +218,12 @@ asm_return_t lz_main(void)
 	size = (*(u32*)((u8*)zero_page + BP_SYSSIZE)) << 4;
 
 	if (tpm->family == TPM12) {
-		SHA1_CONTEXT sha1ctx;
+		u8 hash[SHA1_DIGEST_SIZE];
 
-		sha1sum(&sha1ctx, data, size);
+		sha1sum(hash, data, size);
 		print("shasum calculated:\n");
-		hexdump(sha1ctx.buf, 20);
-		tpm_extend_pcr(tpm, 17, TPM_HASH_ALG_SHA1, &sha1ctx.buf[0]);
+		hexdump(hash, SHA1_DIGEST_SIZE);
+		tpm_extend_pcr(tpm, 17, TPM_HASH_ALG_SHA1, hash);
 		print("PCR extended\n");
 	} else if (tpm->family == TPM20) {
 		u8 sha256_hash[SHA256_DIGEST_SIZE];

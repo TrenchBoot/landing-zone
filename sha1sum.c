@@ -34,6 +34,13 @@ rol( u32 x, int n)
     return (x << n) | (x >> (-n & 31));
 }
 
+typedef struct {
+	u32		h0, h1, h2, h3, h4;
+	u32		nblocks;
+	unsigned char	buf[64];
+	int		count;
+} SHA1_CONTEXT;
+
 static void
 sha1_init( SHA1_CONTEXT *hd )
 {
@@ -51,7 +58,7 @@ sha1_init( SHA1_CONTEXT *hd )
  * Transform the message X which consists of 16 32-bit-words
  */
 static void
-transform( SHA1_CONTEXT *hd, unsigned char *data )
+transform( SHA1_CONTEXT *hd, const unsigned char *data )
 {
     u32 a,b,c,d,e,tm;
     u32 x[16];
@@ -181,7 +188,7 @@ transform( SHA1_CONTEXT *hd, unsigned char *data )
  * of INBUF with length INLEN.
  */
 static void
-sha1_write( SHA1_CONTEXT *hd, unsigned char *inbuf, u32 inlen)
+sha1_write( SHA1_CONTEXT *hd, const unsigned char *inbuf, u32 inlen)
 {
     if( hd->count == 64 ) { /* flush the buffer */
 	transform( hd, hd->buf );
@@ -218,7 +225,7 @@ sha1_write( SHA1_CONTEXT *hd, unsigned char *inbuf, u32 inlen)
  */
 
 static void
-sha1_final(SHA1_CONTEXT *hd)
+sha1_final(SHA1_CONTEXT *hd, u8 hash[SHA1_DIGEST_SIZE])
 {
     u32 t, msb, lsb;
 
@@ -261,7 +268,7 @@ sha1_final(SHA1_CONTEXT *hd)
     hd->buf[63] = lsb	   ;
     transform( hd, hd->buf );
 
-    u32 *p = (void *)hd->buf;
+    u32 *p = (void *)hash;
     *p++ = be32_to_cpu(hd->h0);
     *p++ = be32_to_cpu(hd->h1);
     *p++ = be32_to_cpu(hd->h2);
@@ -269,15 +276,13 @@ sha1_final(SHA1_CONTEXT *hd)
     *p++ = be32_to_cpu(hd->h4);
 }
 
-void sha1sum(SHA1_CONTEXT *ctx, void *ptr, u32 len)
+void sha1sum(u8 hash[static SHA1_DIGEST_SIZE], const void *ptr, u32 len)
 {
-    /* TODO not sure if we can jam the entire buffer in. The original
-     * code was reading the files in in 4096 chunks. Will have to try
-     * it out. For now just code it the simple way. */
+    SHA1_CONTEXT ctx;
 
-    sha1_init(ctx);
-    sha1_write(ctx, ptr, len);
-    sha1_final(ctx);
+    sha1_init(&ctx);
+    sha1_write(&ctx, ptr, len);
+    sha1_final(&ctx, hash);
 }
 
 /*
