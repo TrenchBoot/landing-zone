@@ -36,18 +36,7 @@ typedef unsigned long	uintptr_t;
 typedef unsigned long	size_t;
 typedef long		ssize_t;
 
-typedef unsigned char		uint8_t;
-typedef unsigned short		uint16_t;
-typedef unsigned int		uint32_t;
-typedef unsigned long long	uint64_t;
-
 #define NULL ((void *)0)
-
-#define min(x,y) ({ \
-	x < y ? x : y; })
-
-#define max(x,y) ({ \
-	x > y ? x : y; })
 
 /*
  * Local declaration of bits of libc
