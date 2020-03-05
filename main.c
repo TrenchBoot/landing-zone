@@ -94,7 +94,7 @@ static inline int isprint(int c)
 void hexdump(const void *memory, size_t length)
 {
 	int i;
-	uint8_t *line;
+	u8 *line;
 	int all_zero = 0;
 	int all_one = 0;
 	size_t num_bytes;
@@ -102,7 +102,7 @@ void hexdump(const void *memory, size_t length)
 	for (i = 0; i < length; i += 16) {
 		int j;
 		num_bytes = 16;
-		line = ((uint8_t *)memory) + i;
+		line = ((u8 *)memory) + i;
 
 		all_zero++;
 		all_one++;

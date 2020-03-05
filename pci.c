@@ -93,7 +93,7 @@ static int pci_conf1_write(unsigned int seg, unsigned int bus,
 	return 0;
 }
 
-uint32_t mmio_base_addr;
+u32 mmio_base_addr;
 
 #define PCI_MMIO_ADDRESS(bus, devfn, reg) \
         _p(mmio_base_addr | (bus << 20ULL) | (devfn << 12ULL) | reg)
