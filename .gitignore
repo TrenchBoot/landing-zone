@@ -3,3 +3,5 @@ lz_header
 *.d
 *.o
 cscope.*
+test-*
+!test-*.c
