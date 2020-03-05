@@ -61,7 +61,7 @@ static inline u32 BLEND_OP(u32 *W)
 	return ret;
 }
 
-const u32 K[] = {
+static const u32 K[] = {
 	0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,
 	0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,
 	0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,
