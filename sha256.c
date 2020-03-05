@@ -24,6 +24,14 @@
 typedef u32 __be32;
 typedef u64 __be64;
 
+#define SHA256_BLOCK_SIZE	64
+
+struct sha256_state {
+	u32 state[SHA256_DIGEST_SIZE / 4];
+	u64 count;
+	u8 buf[SHA256_BLOCK_SIZE];
+};
+
 static inline u32 ror32(u32 word, unsigned int shift)
 {
 	return (word >> shift) | (word << (32 - shift));
@@ -157,14 +165,14 @@ static void sha256_init(struct sha256_state *sctx)
 {
 	*sctx = (struct sha256_state){
 		.state = {
-			SHA256_H0,
-			SHA256_H1,
-			SHA256_H2,
-			SHA256_H3,
-			SHA256_H4,
-			SHA256_H5,
-			SHA256_H6,
-			SHA256_H7,
+			0x6a09e667UL,
+			0xbb67ae85UL,
+			0x3c6ef372UL,
+			0xa54ff53aUL,
+			0x510e527fUL,
+			0x9b05688cUL,
+			0x1f83d9abUL,
+			0x5be0cd19UL,
 		},
 	};
 }
@@ -221,11 +229,11 @@ static void sha256_final(struct sha256_state *sctx, u8 *out)
 		dst[i] = cpu_to_be32(sctx->state[i]);
 }
 
-void sha256sum(u8 *hash, void *data, u32 len)
+void sha256sum(u8 hash[static SHA256_DIGEST_SIZE], const void *data, u32 len)
 {
 	struct sha256_state sctx;
 
 	sha256_init(&sctx);
-	sha256_update(&sctx, (const u8 *)data, len);
+	sha256_update(&sctx, data, len);
 	sha256_final(&sctx, hash);
 }
