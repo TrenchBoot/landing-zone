@@ -227,23 +227,18 @@ sha1_write( SHA1_CONTEXT *hd, const unsigned char *inbuf, u32 inlen)
 static void
 sha1_final(SHA1_CONTEXT *hd, u8 hash[SHA1_DIGEST_SIZE])
 {
-    u32 t, msb, lsb;
+    u64 msg_len;
 
     sha1_write(hd, NULL, 0); /* flush */;
 
-    t = hd->nblocks;
-    /* multiply by 64 to make a byte count */
-    lsb = t << 6;
-    msb = t >> 26;
-    /* add the count */
-    t = lsb;
-    if( (lsb += hd->count) < t )
-	msb++;
-    /* multiply by 8 to make a bit count */
-    t = lsb;
-    lsb <<= 3;
-    msb <<= 3;
-    msb |= t >> 29;
+    /*
+     * Reconstruct the entire message length in bits, avoiding integer
+     * promotion issues.
+     */
+    msg_len  = hd->nblocks;
+    msg_len *= 64;
+    msg_len += hd->count;
+    msg_len *= 8;
 
     if( hd->count < 56 ) { /* enough room */
 	hd->buf[hd->count++] = 0x80; /* pad */
@@ -258,14 +253,9 @@ sha1_final(SHA1_CONTEXT *hd, u8 hash[SHA1_DIGEST_SIZE])
 	memset(hd->buf, 0, 56 ); /* fill next block with zeroes */
     }
     /* append the 64 bit count */
-    hd->buf[56] = msb >> 24;
-    hd->buf[57] = msb >> 16;
-    hd->buf[58] = msb >>  8;
-    hd->buf[59] = msb	   ;
-    hd->buf[60] = lsb >> 24;
-    hd->buf[61] = lsb >> 16;
-    hd->buf[62] = lsb >>  8;
-    hd->buf[63] = lsb	   ;
+    u64 *count = (void *)&hd->buf[56];
+    *count = cpu_to_be64(msg_len);
+
     transform( hd, hd->buf );
 
     u32 *p = (void *)hash;
