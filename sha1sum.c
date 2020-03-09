@@ -57,8 +57,7 @@ sha1_init( SHA1_CONTEXT *hd )
 /****************
  * Transform the message X which consists of 16 32-bit-words
  */
-static void
-transform( SHA1_CONTEXT *hd, const unsigned char *data )
+static void sha1_transform(SHA1_CONTEXT *hd, const unsigned char *data)
 {
     u32 a,b,c,d,e,tm;
     u32 x[16];
@@ -191,7 +190,7 @@ static void
 sha1_write( SHA1_CONTEXT *hd, const unsigned char *inbuf, u32 inlen)
 {
     if( hd->count == 64 ) { /* flush the buffer */
-	transform( hd, hd->buf );
+	sha1_transform(hd, hd->buf);
 	hd->count = 0;
 	hd->nblocks++;
     }
@@ -206,7 +205,7 @@ sha1_write( SHA1_CONTEXT *hd, const unsigned char *inbuf, u32 inlen)
     }
 
     while( inlen >= 64 ) {
-	transform( hd, inbuf );
+	sha1_transform(hd, inbuf);
 	hd->count = 0;
 	hd->nblocks++;
 	inlen -= 64;
@@ -256,7 +255,7 @@ sha1_final(SHA1_CONTEXT *hd, u8 hash[SHA1_DIGEST_SIZE])
     u64 *count = (void *)&hd->buf[56];
     *count = cpu_to_be64(msg_len);
 
-    transform( hd, hd->buf );
+    sha1_transform(hd, hd->buf);
 
     u32 *p = (void *)hash;
     *p++ = be32_to_cpu(hd->h0);
