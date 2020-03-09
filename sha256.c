@@ -100,42 +100,26 @@ static void sha256_transform(u32 *state, const u8 *input)
 	e = state[4];  f = state[5];  g = state[6];  h = state[7];
 
 	/* now iterate */
-	t1 = h + e1(e) + Ch(e, f, g) + K[0] + W[0];
-	t2 = e0(a) + Maj(a, b, c);    d += t1;    h = t1 + t2;
-	t1 = g + e1(d) + Ch(d, e, f) + K[1] + W[1];
-	t2 = e0(h) + Maj(h, a, b);    c += t1;    g = t1 + t2;
-	t1 = f + e1(c) + Ch(c, d, e) + K[2] + W[2];
-	t2 = e0(g) + Maj(g, h, a);    b += t1;    f = t1 + t2;
-	t1 = e + e1(b) + Ch(b, c, d) + K[3] + W[3];
-	t2 = e0(f) + Maj(f, g, h);    a += t1;    e = t1 + t2;
-	t1 = d + e1(a) + Ch(a, b, c) + K[4] + W[4];
-	t2 = e0(e) + Maj(e, f, g);    h += t1;    d = t1 + t2;
-	t1 = c + e1(h) + Ch(h, a, b) + K[5] + W[5];
-	t2 = e0(d) + Maj(d, e, f);    g += t1;    c = t1 + t2;
-	t1 = b + e1(g) + Ch(g, h, a) + K[6] + W[6];
-	t2 = e0(c) + Maj(c, d, e);    f += t1;    b = t1 + t2;
-	t1 = a + e1(f) + Ch(f, g, h) + K[7] + W[7];
-	t2 = e0(b) + Maj(b, c, d);    e += t1;    a = t1 + t2;
+	for (i = 0; i < 16; i += 8) {
+		t1 = h + e1(e) + Ch(e, f, g) + K[i + 0] + W[i + 0];
+		t2 = e0(a) + Maj(a, b, c);    d += t1;    h = t1 + t2;
+		t1 = g + e1(d) + Ch(d, e, f) + K[i + 1] + W[i + 1];
+		t2 = e0(h) + Maj(h, a, b);    c += t1;    g = t1 + t2;
+		t1 = f + e1(c) + Ch(c, d, e) + K[i + 2] + W[i + 2];
+		t2 = e0(g) + Maj(g, h, a);    b += t1;    f = t1 + t2;
+		t1 = e + e1(b) + Ch(b, c, d) + K[i + 3] + W[i + 3];
+		t2 = e0(f) + Maj(f, g, h);    a += t1;    e = t1 + t2;
+		t1 = d + e1(a) + Ch(a, b, c) + K[i + 4] + W[i + 4];
+		t2 = e0(e) + Maj(e, f, g);    h += t1;    d = t1 + t2;
+		t1 = c + e1(h) + Ch(h, a, b) + K[i + 5] + W[i + 5];
+		t2 = e0(d) + Maj(d, e, f);    g += t1;    c = t1 + t2;
+		t1 = b + e1(g) + Ch(g, h, a) + K[i + 6] + W[i + 6];
+		t2 = e0(c) + Maj(c, d, e);    f += t1;    b = t1 + t2;
+		t1 = a + e1(f) + Ch(f, g, h) + K[i + 7] + W[i + 7];
+		t2 = e0(b) + Maj(b, c, d);    e += t1;    a = t1 + t2;
+	}
 
-	t1 = h + e1(e) + Ch(e, f, g) + K[8] + W[8];
-	t2 = e0(a) + Maj(a, b, c);    d += t1;    h = t1 + t2;
-	t1 = g + e1(d) + Ch(d, e, f) + K[9] + W[9];
-	t2 = e0(h) + Maj(h, a, b);    c += t1;    g = t1 + t2;
-	t1 = f + e1(c) + Ch(c, d, e) + K[10] + W[10];
-	t2 = e0(g) + Maj(g, h, a);    b += t1;    f = t1 + t2;
-	t1 = e + e1(b) + Ch(b, c, d) + K[11] + W[11];
-	t2 = e0(f) + Maj(f, g, h);    a += t1;    e = t1 + t2;
-	t1 = d + e1(a) + Ch(a, b, c) + K[12] + W[12];
-	t2 = e0(e) + Maj(e, f, g);    h += t1;    d = t1 + t2;
-	t1 = c + e1(h) + Ch(h, a, b) + K[13] + W[13];
-	t2 = e0(d) + Maj(d, e, f);    g += t1;    c = t1 + t2;
-	t1 = b + e1(g) + Ch(g, h, a) + K[14] + W[14];
-	t2 = e0(c) + Maj(c, d, e);    f += t1;    b = t1 + t2;
-	t1 = a + e1(f) + Ch(f, g, h) + K[15] + W[15];
-	t2 = e0(b) + Maj(b, c, d);    e += t1;    a = t1+t2;
-
-	for (i = 16; i < 64; i += 8)
-	{
+	for (; i < 64; i += 8) {
 		t1 = h + e1(e) + Ch(e, f, g) + K[i + 0] + sha256_blend(W, i + 0);
 		t2 = e0(a) + Maj(a, b, c);    d += t1;    h = t1+t2;
 		t1 = g + e1(d) + Ch(d, e, f) + K[i + 1] + sha256_blend(W, i + 1);
