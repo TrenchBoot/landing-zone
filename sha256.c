@@ -57,16 +57,13 @@ static inline void LOAD_OP(int I, u32 *W, const u8 *input)
 	W[I] = be32_to_cpu(((__be32 *)(input))[I]);
 }
 
-static inline u32 BLEND_OP(u32 *W)
+static u32 sha256_blend(u32 *W, unsigned int i)
 {
-	static unsigned i = 0;
-	u32 ret;
+#define W(i) W[(i) & 15]
 
-	W[i] = s1(W[(i-2) & 0xf]) + W[(i-7) & 0xf] + s0(W[(i-15) & 0xf]) + W[i];
-	ret = W[i];
-	i++;
-	i &= 0xf;
-	return ret;
+	return W(i) += s1(W(i - 2)) + W(i - 7) + s0(W(i - 15));
+
+#undef W
 }
 
 static const u32 K[] = {
@@ -139,21 +136,21 @@ static void sha256_transform(u32 *state, const u8 *input)
 
 	for (i = 16; i < 64; i += 8)
 	{
-		t1 = h + e1(e) + Ch(e, f, g) + K[i] + BLEND_OP(W);
+		t1 = h + e1(e) + Ch(e, f, g) + K[i + 0] + sha256_blend(W, i + 0);
 		t2 = e0(a) + Maj(a, b, c);    d += t1;    h = t1+t2;
-		t1 = g + e1(d) + Ch(d, e, f) + K[i+1] + BLEND_OP(W);
+		t1 = g + e1(d) + Ch(d, e, f) + K[i + 1] + sha256_blend(W, i + 1);
 		t2 = e0(h) + Maj(h, a, b);    c += t1;    g = t1+t2;
-		t1 = f + e1(c) + Ch(c, d, e) + K[i+2] + BLEND_OP(W);
+		t1 = f + e1(c) + Ch(c, d, e) + K[i + 2] + sha256_blend(W, i + 2);
 		t2 = e0(g) + Maj(g, h, a);    b += t1;    f = t1+t2;
-		t1 = e + e1(b) + Ch(b, c, d) + K[i+3] + BLEND_OP(W);
+		t1 = e + e1(b) + Ch(b, c, d) + K[i + 3] + sha256_blend(W, i + 3);
 		t2 = e0(f) + Maj(f, g, h);    a += t1;    e = t1+t2;
-		t1 = d + e1(a) + Ch(a, b, c) + K[i+4] + BLEND_OP(W);
+		t1 = d + e1(a) + Ch(a, b, c) + K[i + 4] + sha256_blend(W, i + 4);
 		t2 = e0(e) + Maj(e, f, g);    h += t1;    d = t1+t2;
-		t1 = c + e1(h) + Ch(h, a, b) + K[i+5] + BLEND_OP(W);
+		t1 = c + e1(h) + Ch(h, a, b) + K[i + 5] + sha256_blend(W, i + 5);
 		t2 = e0(d) + Maj(d, e, f);    g += t1;    c = t1+t2;
-		t1 = b + e1(g) + Ch(g, h, a) + K[i+6] + BLEND_OP(W);
+		t1 = b + e1(g) + Ch(g, h, a) + K[i + 6] + sha256_blend(W, i + 6);
 		t2 = e0(c) + Maj(c, d, e);    f += t1;    b = t1+t2;
-		t1 = a + e1(f) + Ch(f, g, h) + K[i+7] + BLEND_OP(W);
+		t1 = a + e1(f) + Ch(f, g, h) + K[i + 7] + sha256_blend(W, i + 7);
 		t2 = e0(b) + Maj(b, c, d);    e += t1;    a = t1+t2;
 	}
 
