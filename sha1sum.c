@@ -65,8 +65,9 @@ static u32 sha1_blend(u32 *x, unsigned int i)
 /****************
  * Transform the message X which consists of 16 32-bit-words
  */
-static void sha1_transform(SHA1_CONTEXT *hd, const unsigned char *data)
+static void sha1_transform(SHA1_CONTEXT *hd, const void *_data)
 {
+    const u32 *data = _data;
     u32 a,b,c,d,e;
     u32 x[16];
     int i;
@@ -78,8 +79,8 @@ static void sha1_transform(SHA1_CONTEXT *hd, const unsigned char *data)
     d = hd->h3;
     e = hd->h4;
 
-    for (i = 0; i < 16; ++i, data += 4)
-        x[i] = cpu_to_be32(*(u32 *)data);
+    for (i = 0; i < 16; ++i)
+        x[i] = cpu_to_be32(data[i]);
 
 
 #define K1  0x5A827999L
