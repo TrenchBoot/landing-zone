@@ -35,10 +35,9 @@ rol( u32 x, int n)
 }
 
 typedef struct {
+	u64		count;
 	u32		h0, h1, h2, h3, h4;
-	u32		nblocks;
 	unsigned char	buf[64];
-	int		count;
 } SHA1_CONTEXT;
 
 static void
@@ -148,36 +147,13 @@ static void sha1_transform(SHA1_CONTEXT *hd, const void *_data)
 }
 
 
-/* Update the message digest with the contents
- * of INBUF with length INLEN.
- */
-static void
-sha1_write( SHA1_CONTEXT *hd, const unsigned char *inbuf, u32 inlen)
+static void sha1_once(SHA1_CONTEXT *hd, const void *data, u32 len)
 {
-    if( hd->count == 64 ) { /* flush the buffer */
-	sha1_transform(hd, hd->buf);
-	hd->count = 0;
-	hd->nblocks++;
-    }
-    if( !inbuf )
-	return;
-    if( hd->count ) {
-	for( ; inlen && hd->count < 64; inlen-- )
-	    hd->buf[hd->count++] = *inbuf++;
-	sha1_write( hd, NULL, 0 );
-	if( !inlen )
-	    return;
-    }
+    hd->count = len;
+    for (; len >= 64; data += 64, len -= 64)
+        sha1_transform(hd, data);
 
-    while( inlen >= 64 ) {
-	sha1_transform(hd, inbuf);
-	hd->count = 0;
-	hd->nblocks++;
-	inlen -= 64;
-	inbuf += 64;
-    }
-    for( ; inlen && hd->count < 64; inlen-- )
-	hd->buf[hd->count++] = *inbuf++;
+    memcpy(hd->buf, data, len);
 }
 
 
@@ -191,35 +167,23 @@ sha1_write( SHA1_CONTEXT *hd, const unsigned char *inbuf, u32 inlen)
 static void
 sha1_final(SHA1_CONTEXT *hd, u8 hash[SHA1_DIGEST_SIZE])
 {
-    u64 msg_len;
+    unsigned int partial = hd->count & 0x3f;
 
-    sha1_write(hd, NULL, 0); /* flush */;
+    /* Start padding */
+    hd->buf[partial++] = 0x80;
 
-    /*
-     * Reconstruct the entire message length in bits, avoiding integer
-     * promotion issues.
-     */
-    msg_len  = hd->nblocks;
-    msg_len *= 64;
-    msg_len += hd->count;
-    msg_len *= 8;
-
-    if( hd->count < 56 ) { /* enough room */
-	hd->buf[hd->count++] = 0x80; /* pad */
-	while( hd->count < 56 )
-	    hd->buf[hd->count++] = 0;  /* pad */
+    if (partial > 56) {
+        /* Need one extra block - pad to 64 */
+        memset(hd->buf + partial, 0, 64 - partial);
+        sha1_transform(hd, hd->buf);
+        partial = 0;
     }
-    else { /* need one extra block */
-	hd->buf[hd->count++] = 0x80; /* pad character */
-	while( hd->count < 64 )
-	    hd->buf[hd->count++] = 0;
-	sha1_write(hd, NULL, 0);  /* flush */;
-	memset(hd->buf, 0, 56 ); /* fill next block with zeroes */
-    }
+    /* Pad to 56 */
+    memset(hd->buf + partial, 0, 56 - partial);
+
     /* append the 64 bit count */
     u64 *count = (void *)&hd->buf[56];
-    *count = cpu_to_be64(msg_len);
-
+    *count = cpu_to_be64(hd->count << 3);
     sha1_transform(hd, hd->buf);
 
     u32 *p = (void *)hash;
@@ -235,7 +199,7 @@ void sha1sum(u8 hash[static SHA1_DIGEST_SIZE], const void *ptr, u32 len)
     SHA1_CONTEXT ctx;
 
     sha1_init(&ctx);
-    sha1_write(&ctx, ptr, len);
+    sha1_once(&ctx, ptr, len);
     sha1_final(&ctx, hash);
 }
 
