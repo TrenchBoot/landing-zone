@@ -16,13 +16,8 @@
  */
 
 #include <byteswap.h>
-#include <defs.h>
 #include <types.h>
-#include <errno-base.h>
 #include <sha256.h>
-
-typedef u32 __be32;
-typedef u64 __be64;
 
 #define SHA256_BLOCK_SIZE	64
 
@@ -52,11 +47,6 @@ static inline u32 Maj(u32 x, u32 y, u32 z)
 #define s0(x)       (ror32(x, 7) ^ ror32(x, 18) ^ (x >> 3))
 #define s1(x)       (ror32(x, 17) ^ ror32(x, 19) ^ (x >> 10))
 
-static inline void LOAD_OP(int I, u32 *W, const u8 *input)
-{
-	W[I] = be32_to_cpu(((__be32 *)(input))[I]);
-}
-
 static u32 sha256_blend(u32 *W, unsigned int i)
 {
 #define W(i) W[(i) & 15]
@@ -85,15 +75,16 @@ static const u32 K[] = {
 	0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2
 };
 
-static void sha256_transform(u32 *state, const u8 *input)
+static void sha256_transform(u32 *state, const void *_input)
 {
+	const u32 *input = _input;
 	u32 a, b, c, d, e, f, g, h, t1, t2;
 	u32 W[16];
 	int i;
 
 	/* load the input */
 	for (i = 0; i < 16; i++)
-		LOAD_OP(i, W, input);
+		W[i] = be32_to_cpu(input[i]);
 
 	/* load the state into our registers */
 	a = state[0];  b = state[1];  c = state[2];  d = state[3];
@@ -158,7 +149,7 @@ static void sha256_init(struct sha256_state *sctx)
 	};
 }
 
-static void sha256_update(struct sha256_state *sctx, const u8 *data, u32 len)
+static void sha256_update(struct sha256_state *sctx, const void *data, u32 len)
 {
 	unsigned int partial, done;
 	const u8 *src;
@@ -186,10 +177,10 @@ static void sha256_update(struct sha256_state *sctx, const u8 *data, u32 len)
 	memcpy(sctx->buf + partial, src, len - done);
 }
 
-static void sha256_final(struct sha256_state *sctx, u8 *out)
+static void sha256_final(struct sha256_state *sctx, void *_dst)
 {
-	__be32 *dst = (__be32 *)out;
-	__be64 bits;
+	u32 *dst = _dst;
+	u64 bits;
 	unsigned int index, pad_len;
 	int i;
 	static const u8 padding[64] = { 0x80, };
@@ -203,7 +194,7 @@ static void sha256_final(struct sha256_state *sctx, u8 *out)
 	sha256_update(sctx, padding, pad_len);
 
 	/* Append length (before padding) */
-	sha256_update(sctx, (const u8 *)&bits, sizeof(bits));
+	sha256_update(sctx, &bits, sizeof(bits));
 
 	/* Store state in digest */
 	for (i = 0; i < 8; i++)
