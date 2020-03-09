@@ -59,14 +59,9 @@
     __attribute__ ((__section__(".page_data"), __aligned__(PAGE_SIZE)))
 
 #define unreachable()   __builtin_unreachable()
+#define offsetof(a, b)  __builtin_offsetof(a, b)
 
-/* Boot Params */
-#define BP_TB_DEV_MAP    0x0d8
-#define BP_SYSSIZE       0x1f4
-#define BP_CODE32_START  0x214
-#define BP_CMD_LINE_PTR  0x228
-#define BP_CMDLINE_SIZE  0x238
-#define BP_MLE_HEADER    0x268
+#define BUILD_BUG_ON(x) ({ _Static_assert(!(x), "!(" #x ")"); })
 
 /* CRs */
 #define CR0_PE  0x00000001 /* Protected mode Enable */

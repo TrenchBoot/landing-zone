@@ -25,6 +25,7 @@
 #include <tpm.h>
 #include <sha1sum.h>
 #include <sha256.h>
+#include <linux-bootparams.h>
 
 static u8 __page_data dev_table[3 * PAGE_SIZE];
 
@@ -175,14 +176,11 @@ typedef struct {
 
 asm_return_t lz_main(void)
 {
-	u32 *tb_dev_map;
+	struct boot_params *bp;
 	u64 pfn, end_pfn;
 	u32 dev;
-	u32 *code32_start;
-	u32 *slaunch_header_offset;
 	u32 *sl_stub_entry_offset;
-	u32 *data, size;
-	void *pm_kernel_entry, *zero_page;
+	void *pm_kernel_entry;
 	struct tpm *tpm;
 
 	/*
@@ -194,11 +192,11 @@ asm_return_t lz_main(void)
 	 */
 
 	/* The Zero Page with the boot_params and legacy header */
-	zero_page = _p(lz_header.zero_page_addr);
+	bp = _p(lz_header.zero_page_addr);
 
 	/* DEV CODE */
 
-	pfn = PAGE_PFN(zero_page);
+	pfn = PAGE_PFN(bp);
 	end_pfn = PAGE_PFN(PAGE_DOWN((u8*)lz_base + 0x10000));
 
 	/* TODO: check end_pfn is not ouside of range of DEV map */
@@ -214,17 +212,14 @@ asm_return_t lz_main(void)
 	dev_flush_cache(dev);
 
 	/* Set the DEV address for the TB stub to use */
-	tb_dev_map = zero_page + BP_TB_DEV_MAP;
-	*tb_dev_map = _u(dev_table);
+	bp->tb_dev_map = _u(dev_table);
 
-	code32_start = zero_page + BP_CODE32_START;
-	slaunch_header_offset = zero_page + BP_MLE_HEADER;
-	sl_stub_entry_offset = _p(*code32_start + *slaunch_header_offset + 24);
+	sl_stub_entry_offset = _p(bp->code32_start + bp->mle_header + 24);
 
 	print("sl_stub_entry_offset:\n");
 	hexdump(sl_stub_entry_offset, 0x100);
 
-	pm_kernel_entry = _p(*code32_start + *sl_stub_entry_offset);
+	pm_kernel_entry = _p(bp->code32_start + *sl_stub_entry_offset);
 
 	/*
 	 * TODO Note these functions can fail but there is no clear way to
@@ -235,9 +230,7 @@ asm_return_t lz_main(void)
 	tpm_request_locality(tpm, 2);
 
 	/* extend TB Loader code segment into PCR17 */
-	data = (u32*)(uintptr_t)*code32_start;
-	size = (*(u32*)((u8*)zero_page + BP_SYSSIZE)) << 4;
-	extend_pcr(tpm, data, size, 17);
+	extend_pcr(tpm, _p(bp->code32_start), bp->syssize << 4, 17);
 
 	tpm_relinquish_locality(tpm);
 	free_tpm(tpm);
@@ -246,9 +239,21 @@ asm_return_t lz_main(void)
 	print("pm_kernel_entry:\n");
 	hexdump(pm_kernel_entry, 0x100);
 	print("zero_page:\n");
-	hexdump(zero_page, 0x100);
+	hexdump(bp, 0x100);
 	print("lz_base:\n");
 	hexdump(lz_base, 0x100);
 
-	return (asm_return_t){ pm_kernel_entry, zero_page };
+	return (asm_return_t){ pm_kernel_entry, bp };
+}
+
+static void __maybe_unused build_assertions(void)
+{
+    struct boot_params b;
+
+    BUILD_BUG_ON(offsetof(typeof(b), tb_dev_map)   != 0x0d8);
+    BUILD_BUG_ON(offsetof(typeof(b), syssize)      != 0x1f4);
+    BUILD_BUG_ON(offsetof(typeof(b), code32_start) != 0x214);
+    BUILD_BUG_ON(offsetof(typeof(b), cmd_line_ptr) != 0x228);
+    BUILD_BUG_ON(offsetof(typeof(b), cmdline_size) != 0x238);
+    BUILD_BUG_ON(offsetof(typeof(b), mle_header)   != 0x268);
 }
