@@ -53,13 +53,21 @@ sha1_init( SHA1_CONTEXT *hd )
     };
 }
 
+static u32 sha1_blend(u32 *x, unsigned int i)
+{
+#define X(i) x[(i) & 15]
+
+    return X(i) = rol(X(i) ^ X(i - 14) ^ X(i - 8) ^ X(i - 3), 1);
+
+#undef X
+}
 
 /****************
  * Transform the message X which consists of 16 32-bit-words
  */
 static void sha1_transform(SHA1_CONTEXT *hd, const unsigned char *data)
 {
-    u32 a,b,c,d,e,tm;
+    u32 a,b,c,d,e;
     u32 x[16];
 
     /* get values from the chaining vars */
@@ -82,11 +90,7 @@ static void sha1_transform(SHA1_CONTEXT *hd, const unsigned char *data)
 #define F3(x,y,z)   ( ( x & y ) | ( z & ( x | y ) ) )
 #define F4(x,y,z)   ( x ^ y ^ z )
 
-
-#define M(i) ( tm =   x[i&0x0f] ^ x[(i-14)&0x0f] \
-		    ^ x[(i-8)&0x0f] ^ x[(i-3)&0x0f] \
-	       , (x[i&0x0f] = rol(tm,1)) )
-
+#define M(i) sha1_blend(x, i)
 #define R(a,b,c,d,e,f,k,m)  do { e += rol( a, 5 )     \
 				      + f( b, c, d )  \
 				      + k	      \
