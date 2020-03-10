@@ -149,52 +149,37 @@ static void sha256_init(struct sha256_state *sctx)
 	};
 }
 
-static void sha256_update(struct sha256_state *sctx, const void *data, u32 len)
+static void sha256_once(struct sha256_state *sctx, const void *data, u32 len)
 {
-	unsigned int partial, done;
-	const u8 *src;
+	sctx->count = len;
+	for (; len >= 64; data += 64, len -= 64)
+		sha256_transform(sctx->state, data);
 
-	partial = sctx->count & 0x3f;
-	sctx->count += len;
-	done = 0;
-	src = data;
-
-	if ((partial + len) > 63) {
-		if (partial) {
-			done = -partial;
-			memcpy(sctx->buf + partial, data, done + 64);
-			src = sctx->buf;
-		}
-
-		do {
-			sha256_transform(sctx->state, src);
-			done += 64;
-			src = data + done;
-		} while (done + 63 < len);
-
-		partial = 0;
-	}
-	memcpy(sctx->buf + partial, src, len - done);
+	memcpy(sctx->buf, data, len);
 }
 
 static void sha256_final(struct sha256_state *sctx, void *_dst)
 {
 	u32 *dst = _dst;
-	u64 bits;
-	unsigned int index, pad_len;
-	int i;
-	static const u8 padding[64] = { 0x80, };
+	u64 *count;
+	unsigned int i, partial = sctx->count & 0x3f;
 
-	/* Save number of bits */
-	bits = cpu_to_be64(sctx->count << 3);
+	/* Start padding */
+	sctx->buf[partial++] = 0x80;
 
-	/* Pad out to 56 mod 64. */
-	index = sctx->count & 0x3f;
-	pad_len = (index < 56) ? (56 - index) : ((64+56) - index);
-	sha256_update(sctx, padding, pad_len);
+	if (partial > 56) {
+		/* Need one extra block - pad to 64 */
+		memset(sctx->buf + partial, 0, 64 - partial);
+		sha256_transform(sctx->state, sctx->buf);
+		partial = 0;
+	}
+	/* Pad to 56 */
+	memset(sctx->buf + partial, 0, 56 - partial);
 
-	/* Append length (before padding) */
-	sha256_update(sctx, &bits, sizeof(bits));
+	/* Append the 64 bit count */
+	count = (void *)&sctx->buf[56];
+	*count = cpu_to_be64(sctx->count << 3);
+	sha256_transform(sctx->state, sctx->buf);
 
 	/* Store state in digest */
 	for (i = 0; i < 8; i++)
@@ -206,6 +191,6 @@ void sha256sum(u8 hash[static SHA256_DIGEST_SIZE], const void *data, u32 len)
 	struct sha256_state sctx;
 
 	sha256_init(&sctx);
-	sha256_update(&sctx, data, len);
+	sha256_once(&sctx, data, len);
 	sha256_final(&sctx, hash);
 }
