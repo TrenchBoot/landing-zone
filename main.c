@@ -26,6 +26,7 @@
 #include <sha256.h>
 #include <linux-bootparams.h>
 #include <event_log.h>
+#include <multiboot2.h>
 
 #ifdef DEBUG
 static void print_char(char c)
@@ -234,7 +235,7 @@ asm_return_t lz_main(void)
 	 */
 
 	/* The Zero Page with the boot_params and legacy header */
-	bp = _p(lz_header.zero_page_addr);
+	bp = _p(lz_header.proto_struct);
 
 	pci_init();
 
@@ -292,6 +293,61 @@ asm_return_t lz_main(void)
 	print("lz_main() is about to exit\n");
 
 	return (asm_return_t){ pm_kernel_entry, bp };
+}
+
+asm_return_t lz_multiboot2()
+{
+	void *kernel_entry = NULL;
+	struct tpm *tpm;
+	u32 kernel_size;
+
+	/* This is MBI header, not a tag, but their structures are similar enough.
+	 * Note that 'size' offsets are reversed in those two! */
+	struct multiboot_tag *tag = _p(lz_header.proto_struct);
+	kernel_size = tag->size;
+	tag->size = 0;
+
+	/* TODO: DEV or IOMMU, switch SLB protection off */
+
+	tpm = enable_tpm();
+	tpm_request_locality(tpm, 2);
+
+	/* Extend PCR18 with MBI structure's hash; this includes all cmdlines */
+	extend_pcr(tpm, &tag, tag->size, 18, "Measured MBI into PCR18");
+
+	tag++;
+
+	while (tag->type) {
+		if (tag->type == MULTIBOOT_TAG_TYPE_LOAD_BASE_ADDR) {
+			struct multiboot_tag_load_base_addr *ba = (struct multiboot_tag_load_base_addr *)tag;
+			kernel_entry = _p(ba->load_base_addr);
+			extend_pcr(tpm, kernel_entry, kernel_size, 17,
+			           "Measured Kernel into PCR17");
+		}
+
+		if (tag->type == MULTIBOOT_TAG_TYPE_MODULE) {
+			struct multiboot_tag_module *mod = (struct multiboot_tag_module*)tag;
+			print("Module '");
+			print(mod->cmdline);
+			print("' [");
+			print_p(_p(mod->mod_start));
+			print_p(_p(mod->mod_end));
+			print("]\n");
+			extend_pcr(tpm, _p(mod->mod_start), mod->mod_end - mod->mod_start, 17, mod->cmdline);
+		}
+
+		tag = multiboot_next_tag(tag);
+	}
+
+	tpm_relinquish_locality(tpm);
+	free_tpm(tpm);
+
+	print("lz_multiboot2 returning\n");
+
+	/* Xen sends self-NMI which would be blocked without stgi() */
+	stgi();
+
+	return (asm_return_t){ kernel_entry, _p(lz_header.proto_struct) };
 }
 
 static void __maybe_unused build_assertions(void)
