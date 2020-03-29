@@ -138,6 +138,7 @@ void hexdump(const void *memory, size_t length)
 }
 #else
 static void print(const char * unused) { }
+static void print_p(const void * unused) { }
 static void hexdump(const void *unused, size_t unused2) { }
 #endif
 
@@ -177,9 +178,10 @@ typedef struct {
 asm_return_t lz_main(void)
 {
 	struct boot_params *bp;
+	struct kernel_info *ki;
+	struct mle_header *mle_header;
 	u64 pfn, end_pfn;
 	u32 dev;
-	u32 *sl_stub_entry_offset;
 	void *pm_kernel_entry;
 	struct tpm *tpm;
 
@@ -214,12 +216,30 @@ asm_return_t lz_main(void)
 	/* Set the DEV address for the TB stub to use */
 	bp->tb_dev_map = _u(dev_table);
 
-	sl_stub_entry_offset = _p(bp->code32_start + bp->mle_header + 24);
+	print("\ncode32_start ");
+	print_p(_p(bp->code32_start));
 
-	print("sl_stub_entry_offset:\n");
-	hexdump(sl_stub_entry_offset, 0x100);
+	ki = _p(bp->code32_start + bp->kern_info_offset);
+	mle_header = _p(bp->code32_start + ki->mle_header_offset);
 
-	pm_kernel_entry = _p(bp->code32_start + *sl_stub_entry_offset);
+	if (bp->version             < 0x020f
+	    || ki->header          != KERNEL_INFO_HEADER
+	    || mle_header->uuid[0] != MLE_UUID0
+	    || mle_header->uuid[1] != MLE_UUID1
+	    || mle_header->uuid[2] != MLE_UUID2
+	    || mle_header->uuid[3] != MLE_UUID3) {
+		print("\nKernel is too old or MLE header not present. Rebooting now...");
+		die();
+	}
+
+	print("\nmle_header\n");
+	hexdump(mle_header, sizeof(struct mle_header));
+
+	pm_kernel_entry = _p(bp->code32_start + mle_header->sl_stub_entry);
+
+	print("\npm_kernel_entry ");
+	print_p(pm_kernel_entry);
+	print("\n");
 
 	/*
 	 * TODO Note these functions can fail but there is no clear way to
@@ -243,17 +263,23 @@ asm_return_t lz_main(void)
 	print("lz_base:\n");
 	hexdump(lz_base, 0x100);
 
+	print("lz_main() is about to exit\n");
+
 	return (asm_return_t){ pm_kernel_entry, bp };
 }
 
 static void __maybe_unused build_assertions(void)
 {
     struct boot_params b;
+    struct kernel_info k;
 
-    BUILD_BUG_ON(offsetof(typeof(b), tb_dev_map)   != 0x0d8);
-    BUILD_BUG_ON(offsetof(typeof(b), syssize)      != 0x1f4);
-    BUILD_BUG_ON(offsetof(typeof(b), code32_start) != 0x214);
-    BUILD_BUG_ON(offsetof(typeof(b), cmd_line_ptr) != 0x228);
-    BUILD_BUG_ON(offsetof(typeof(b), cmdline_size) != 0x238);
-    BUILD_BUG_ON(offsetof(typeof(b), mle_header)   != 0x268);
+    BUILD_BUG_ON(offsetof(typeof(b), tb_dev_map)        != 0x0d8);
+    BUILD_BUG_ON(offsetof(typeof(b), syssize)           != 0x1f4);
+    BUILD_BUG_ON(offsetof(typeof(b), version)           != 0x206);
+    BUILD_BUG_ON(offsetof(typeof(b), code32_start)      != 0x214);
+    BUILD_BUG_ON(offsetof(typeof(b), cmd_line_ptr)      != 0x228);
+    BUILD_BUG_ON(offsetof(typeof(b), cmdline_size)      != 0x238);
+    BUILD_BUG_ON(offsetof(typeof(b), kern_info_offset)  != 0x268);
+
+    BUILD_BUG_ON(offsetof(typeof(k), mle_header_offset) != 0x010);
 }
