@@ -197,7 +197,7 @@ asm_return_t lz_main(void)
 	/* DEV CODE */
 
 	pfn = PAGE_PFN(bp);
-	end_pfn = PAGE_PFN(PAGE_DOWN((u8*)lz_base + 0x10000));
+	end_pfn = PAGE_PFN(PAGE_DOWN(_start + 0x10000));
 
 	/* TODO: check end_pfn is not ouside of range of DEV map */
 
@@ -241,7 +241,7 @@ asm_return_t lz_main(void)
 	print("zero_page:\n");
 	hexdump(bp, 0x100);
 	print("lz_base:\n");
-	hexdump(lz_base, 0x100);
+	hexdump(_start, 0x100);
 
 	return (asm_return_t){ pm_kernel_entry, bp };
 }
