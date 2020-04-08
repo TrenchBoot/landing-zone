@@ -24,6 +24,7 @@ ENTRY(_entry)
 SECTIONS
 {
 	. = 0;
+	_start = .;
 	.text : {
 		*(.headers)
 		*(.text*)

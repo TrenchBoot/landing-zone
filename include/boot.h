@@ -39,14 +39,13 @@
 #ifndef __BOOT_H__
 #define __BOOT_H__
 
+extern const char _start[];
+
 typedef struct __packed sl_header {
 	u16 lz_offet;
 	u16 lz_length;
 } sl_header_t;
 extern sl_header_t sl_header;
-
-/* The base of Landing Zone is in practice the Secure Launch header. */
-#define lz_base ((void *)&sl_header)
 
 typedef struct __packed lz_header {
 	u8  uuid[16]; /* 78 f1 26 8e 04 92 11 e9  83 2a c8 5b 76 c4 cc 02 */
