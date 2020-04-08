@@ -28,6 +28,13 @@ _gcc_9: &_gcc_9
       packages:
         - gcc-9
 
+_gcc_10: &_gcc_10
+  addons:
+    apt:
+      sources:
+        - ubuntu-toolchain-r-test
+      packages:
+        - gcc-10
 
 jobs:
   include:
@@ -73,6 +80,19 @@ jobs:
       <<: *_gcc_9
       env: CC=gcc-9 BITS32=y LTO=y
 
+    # GCC 10 tests
+    - name: GCC 10, 64bit
+      <<: *_gcc_10
+      env: CC=gcc-10 BITS32=n LTO=n
+    - name: GCC 10, 64bit LTO
+      <<: *_gcc_10
+      env: CC=gcc-10 BITS32=n LTO=y
+    - name: GCC 10, 32bit
+      <<: *_gcc_10
+      env: CC=gcc-10 BITS32=y LTO=n
+    - name: GCC 10, 32bit LTO
+      <<: *_gcc_10
+      env: CC=gcc-10 BITS32=y LTO=y
 
 script:
   - make 32=$BITS32
