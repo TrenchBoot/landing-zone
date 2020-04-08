@@ -140,6 +140,27 @@ static void print(const char * unused) { }
 static void hexdump(const void *unused, size_t unused2) { }
 #endif
 
+static void extend_pcr(struct tpm *tpm, void *data, u32 size, u32 pcr)
+{
+	if (tpm->family == TPM12) {
+		u8 hash[SHA1_DIGEST_SIZE];
+
+		sha1sum(hash, data, size);
+		print("shasum calculated:\n");
+		hexdump(hash, SHA1_DIGEST_SIZE);
+		tpm_extend_pcr(tpm, pcr, TPM_HASH_ALG_SHA1, hash);
+		print("PCR extended\n");
+	} else if (tpm->family == TPM20) {
+		u8 sha256_hash[SHA256_DIGEST_SIZE];
+
+		sha256sum(sha256_hash, data, size);
+		print("shasum calculated:\n");
+		hexdump(sha256_hash, SHA256_DIGEST_SIZE);
+		tpm_extend_pcr(tpm, pcr, TPM_HASH_ALG_SHA256, &sha256_hash[0]);
+		print("PCR extended\n");
+	}
+}
+
 /*
  * Function return ABI magic:
  *
@@ -216,24 +237,7 @@ asm_return_t lz_main(void)
 	/* extend TB Loader code segment into PCR17 */
 	data = (u32*)(uintptr_t)*code32_start;
 	size = (*(u32*)((u8*)zero_page + BP_SYSSIZE)) << 4;
-
-	if (tpm->family == TPM12) {
-		u8 hash[SHA1_DIGEST_SIZE];
-
-		sha1sum(hash, data, size);
-		print("shasum calculated:\n");
-		hexdump(hash, SHA1_DIGEST_SIZE);
-		tpm_extend_pcr(tpm, 17, TPM_HASH_ALG_SHA1, hash);
-		print("PCR extended\n");
-	} else if (tpm->family == TPM20) {
-		u8 sha256_hash[SHA256_DIGEST_SIZE];
-
-		sha256sum(sha256_hash, data, size);
-		print("shasum calculated:\n");
-		hexdump(sha256_hash, SHA256_DIGEST_SIZE);
-		tpm_extend_pcr(tpm, 17, TPM_HASH_ALG_SHA256, &sha256_hash[0]);
-		print("PCR extended\n");
-	}
+	extend_pcr(tpm, data, size, 17);
 
 	tpm_relinquish_locality(tpm);
 	free_tpm(tpm);
