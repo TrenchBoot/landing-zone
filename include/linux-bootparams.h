@@ -15,7 +15,10 @@ struct boot_params {
     u32 cmd_line_ptr;
     u8 _pad8[0x00c];
     u32 cmdline_size;
-    u8 _pad10[0x02c];
+    u8 _pad9[0x00c];
+    u32 payload_offset;
+    u32 payload_length;
+    u8 _pad10[0x018];
     u32 kern_info_offset;
 };
 

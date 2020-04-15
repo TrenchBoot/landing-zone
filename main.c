@@ -164,6 +164,42 @@ static void extend_pcr(struct tpm *tpm, void *data, u32 size, u32 pcr)
 }
 
 /*
+ * Checks if ptr points to *uncompressed* part of the kernel
+ */
+static inline void *is_in_kernel(struct boot_params *bp, void *ptr)
+{
+	if (ptr < _p(bp->code32_start) ||
+	    ptr >= _p(bp->code32_start + (bp->syssize << 4)) ||
+	    (ptr >= _p(bp->code32_start + bp->payload_offset) &&
+	     ptr < _p(bp->code32_start + bp->payload_offset + bp->payload_length)))
+	    return NULL;
+	return ptr;
+}
+
+static inline struct kernel_info *get_kernel_info(struct boot_params *bp)
+{
+	return is_in_kernel(bp, _p(bp->code32_start + bp->kern_info_offset));
+}
+
+static inline struct mle_header *get_mle_hdr(struct boot_params *bp,
+                                      struct kernel_info *ki)
+{
+	return is_in_kernel(bp, _p(bp->code32_start + ki->mle_header_offset));
+}
+
+static inline void *get_kernel_entry(struct boot_params *bp,
+                                     struct mle_header *mle_hdr)
+{
+	return is_in_kernel(bp, _p(bp->code32_start + mle_hdr->sl_stub_entry));
+}
+
+static void reboot(void)
+{
+	print("Rebooting now...");
+	die();
+}
+
+/*
  * Function return ABI magic:
  *
  * By returning a simple object of two pointers, the SYSV ABI splits it across
@@ -219,27 +255,27 @@ asm_return_t lz_main(void)
 	print("\ncode32_start ");
 	print_p(_p(bp->code32_start));
 
-	ki = _p(bp->code32_start + bp->kern_info_offset);
-	mle_header = _p(bp->code32_start + ki->mle_header_offset);
-
-	if (bp->version             < 0x020f
-	    || ki->header          != KERNEL_INFO_HEADER
-	    || mle_header->uuid[0] != MLE_UUID0
-	    || mle_header->uuid[1] != MLE_UUID1
-	    || mle_header->uuid[2] != MLE_UUID2
-	    || mle_header->uuid[3] != MLE_UUID3) {
-		print("\nKernel is too old or MLE header not present. Rebooting now...");
-		die();
+	if (bp->version                            < 0x020f
+	    || (ki = get_kernel_info(bp))         == NULL
+	    || ki->header                         != KERNEL_INFO_HEADER
+	    || (mle_header = get_mle_hdr(bp, ki)) == NULL
+	    || mle_header->uuid[0]                != MLE_UUID0
+	    || mle_header->uuid[1]                != MLE_UUID1
+	    || mle_header->uuid[2]                != MLE_UUID2
+	    || mle_header->uuid[3]                != MLE_UUID3) {
+		print("\nKernel is too old or MLE header not present.\n");
+		reboot();
 	}
 
 	print("\nmle_header\n");
 	hexdump(mle_header, sizeof(struct mle_header));
 
-	pm_kernel_entry = _p(bp->code32_start + mle_header->sl_stub_entry);
+	pm_kernel_entry = get_kernel_entry(bp, mle_header);
 
-	print("\npm_kernel_entry ");
-	print_p(pm_kernel_entry);
-	print("\n");
+	if (pm_kernel_entry == NULL) {
+		print("\nBad kernel entry in MLE header.\n");
+		reboot();
+	}
 
 	/*
 	 * TODO Note these functions can fail but there is no clear way to
@@ -259,7 +295,7 @@ asm_return_t lz_main(void)
 	print("pm_kernel_entry:\n");
 	hexdump(pm_kernel_entry, 0x100);
 	print("zero_page:\n");
-	hexdump(bp, 0x100);
+	hexdump(bp, 0x280);
 	print("lz_base:\n");
 	hexdump(lz_base, 0x100);
 
@@ -279,6 +315,8 @@ static void __maybe_unused build_assertions(void)
     BUILD_BUG_ON(offsetof(typeof(b), code32_start)      != 0x214);
     BUILD_BUG_ON(offsetof(typeof(b), cmd_line_ptr)      != 0x228);
     BUILD_BUG_ON(offsetof(typeof(b), cmdline_size)      != 0x238);
+    BUILD_BUG_ON(offsetof(typeof(b), payload_offset)    != 0x248);
+    BUILD_BUG_ON(offsetof(typeof(b), payload_length)    != 0x24c);
     BUILD_BUG_ON(offsetof(typeof(b), kern_info_offset)  != 0x268);
 
     BUILD_BUG_ON(offsetof(typeof(k), mle_header_offset) != 0x010);
