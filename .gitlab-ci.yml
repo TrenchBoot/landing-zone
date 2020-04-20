@@ -1,0 +1,48 @@
+stages:
+  - build
+
+build_debug_disabled:
+  stage: build
+  image: gcc:9.3.0
+  # install bsdmainutils for hexdump
+  before_script:
+    - apt update && apt -y install bsdmainutils
+  script:
+    - make
+  artifacts:
+    paths:
+      - lz_header.bin
+
+build_nixpkg_debug_disabled:
+  stage: build
+  variables:
+    NIXPKG: "landing-zone"
+    LZ_COMMIT: "$CI_COMMIT_SHA"
+    LZ_TAG: "$CI_COMMIT_REF_NAME"
+  trigger:
+    project: trenchboot1/3mdeb/nixos-trenchboot-configs
+    branch: master
+    strategy: depend
+
+build_debug_enabled:
+  stage: build
+  image: gcc:9.3.0
+  # install bsdmainutils for hexdump
+  before_script:
+    - apt update && apt -y install bsdmainutils
+  script:
+    - make DEBUG=y
+  artifacts:
+    paths:
+      - lz_header.bin
+
+build_nixpkg_debug_enabled:
+  stage: build
+  variables:
+    NIXPKG: "landing-zone"
+    LZ_COMMIT: "$CI_COMMIT_SHA"
+    LZ_TAG: "$CI_COMMIT_REF_NAME"
+  trigger:
+    project: trenchboot1/3mdeb/nixos-trenchboot-configs
+    branch: master
+    strategy: depend
