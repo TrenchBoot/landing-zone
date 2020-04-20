@@ -193,10 +193,15 @@ static inline void *get_kernel_entry(struct boot_params *bp,
 	return is_in_kernel(bp, _p(bp->code32_start + mle_hdr->sl_stub_entry));
 }
 
-static void reboot(void)
+/*
+ * Even though die() has both __attribute__((noreturn)) and unreachable(),
+ * Clang still complains if it isn't repeated here.
+ */
+static void __attribute__((noreturn)) reboot(void)
 {
 	print("Rebooting now...");
 	die();
+	unreachable();
 }
 
 /*

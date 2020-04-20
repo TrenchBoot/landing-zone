@@ -168,7 +168,7 @@ static inline void stgi(void)
 	asm volatile(".byte 0x0f, 0x01, 0xdc" ::: "memory");
 }
 
-static inline void die(void)
+static inline void __attribute__((noreturn)) die(void)
 {
 	asm volatile("ud2");
 	unreachable();
