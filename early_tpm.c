@@ -138,7 +138,7 @@ size_t tpmb_size(struct tpmbuff *b)
 static u8 tis_buff[STATIC_TIS_BUFFER_SIZE];
 static struct tpmbuff tpm_buff;
 
-struct tpmbuff *alloc_tpmbuff(enum tpm_hw_intf intf, u8 locality)
+struct tpmbuff *alloc_tpmbuff(enum tpm_hw_intf intf, u8 l)
 {
 	struct tpmbuff *b = &tpm_buff;
 
@@ -155,7 +155,7 @@ struct tpmbuff *alloc_tpmbuff(enum tpm_hw_intf intf, u8 locality)
 		b->truesize = STATIC_TIS_BUFFER_SIZE;
 		break;
 	case TPM_CRB:
-		b->head = _p(TPM_MMIO_BASE + (locality << 12) +
+		b->head = _p(TPM_MMIO_BASE + (l << 12) +
 			     TPM_CRB_DATA_BUFFER_OFFSET);
 		b->truesize = TPM_CRB_DATA_BUFFER_SIZE;
 		break;
