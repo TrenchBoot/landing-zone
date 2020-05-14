@@ -64,6 +64,20 @@ _clang_10: &_clang_10
         - lld-10
         - llvm-10-dev
 
+_clang_11: &_clang_11
+  addons:
+    apt:
+      sources:
+        - ubuntu-toolchain-r-test
+        # Work around Travis' documenation not matching the whitelist
+        # - llvm-toolchain-bionic
+        - sourceline: 'deb https://apt.llvm.org/xenial/ llvm-toolchain-xenial main'
+          key_url: 'https://apt.llvm.org/llvm-snapshot.gpg.key'
+      packages:
+        - clang-11
+        - lld-11
+        - llvm-11-dev
+
 jobs:
   include:
     # GCC 7 tests
@@ -149,6 +163,20 @@ jobs:
     - name: Clang 10, 32bit LTO
       <<: *_clang_10
       env: CC=clang-10 BITS32=y LTO=y
+
+    # Clang 11 tests
+    - name: Clang 11, 64bit
+      <<: *_clang_11
+      env: CC=clang-11 BITS32=n LTO=n
+    - name: Clang 11, 64bit LTO
+      <<: *_clang_11
+      env: CC=clang-11 BITS32=n LTO=y
+    - name: Clang 11, 32bit
+      <<: *_clang_11
+      env: CC=clang-11 BITS32=y LTO=n
+    - name: Clang 11, 32bit LTO
+      <<: *_clang_11
+      env: CC=clang-11 BITS32=y LTO=y
 
 script:
   - make 32=$BITS32
