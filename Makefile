@@ -24,7 +24,7 @@ endif
 # non-pie as all relocations are internal and there is no dynamic loader to
 # help.
 CFLAGS  += -Os -g -MMD -MP -march=btver2 -mno-sse -mno-mmx -fpie -fomit-frame-pointer
-CFLAGS  += -Iinclude -ffreestanding -Wall -Werror
+CFLAGS  += -Iinclude -ffreestanding -fno-common -Wall -Werror
 LDFLAGS += -nostdlib -no-pie -Wl,--build-id=none
 
 # Derive AFLAGS from CFLAGS

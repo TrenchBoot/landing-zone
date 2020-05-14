@@ -24,6 +24,11 @@
 #include <boot.h>
 #include <pci.h>
 
+int (*pci_read)(unsigned int seg, unsigned int bus,
+                unsigned int devfn, int reg, int len, u32 *value);
+int (*pci_write)(unsigned int seg, unsigned int bus,
+                 unsigned int devfn, int reg, int len, u32 value);
+
 /*
  * Functions for accessing PCI base (first 256 bytes) and extended
  * (4096 bytes per PCI function) configuration space with type 1

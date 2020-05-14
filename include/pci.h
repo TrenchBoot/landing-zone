@@ -47,12 +47,12 @@
 
 /* From arch/x86/pci/direct.c definitions */
 
-int (*pci_read)(unsigned int seg, unsigned int bus,
-		   unsigned int devfn, int reg, int len, u32 *value);
+extern int (*pci_read)(unsigned int seg, unsigned int bus,
+                       unsigned int devfn, int reg, int len, u32 *value);
 
 
-int (*pci_write)(unsigned int seg, unsigned int bus,
-		    unsigned int devfn, int reg, int len, u32 value);
+extern int (*pci_write)(unsigned int seg, unsigned int bus,
+                        unsigned int devfn, int reg, int len, u32 value);
 
 void pci_init(void);
 
