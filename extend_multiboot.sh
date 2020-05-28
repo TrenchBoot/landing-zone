@@ -9,7 +9,7 @@ fi
 KERNEL=$1
 shift
 
-read SKIP SIZE <<< $(readelf "$KERNEL" -l | awk '/LOAD/ {printf "%s  %s\n", $2, $5}')
+read SKIP SIZE <<< $(readelf "$KERNEL" -S | sed "s/\[ /\[0/" | awk '/PROGBITS/ {printf "0x%s  0x%s\n", $5, $6}')
 SKIP=$(($SKIP))
 SIZE=$(($SIZE))
 
