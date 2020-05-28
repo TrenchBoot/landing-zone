@@ -465,10 +465,13 @@ asm_return_t lz_multiboot2()
 	void *kernel_entry = NULL;
 	struct tpm *tpm;
 	u32 kernel_size;
+	int i;
 
 	/* This is MBI header, not a tag, but their structures are similar enough.
 	 * Note that 'size' offsets are reversed in those two! */
 	struct multiboot_tag *tag = _p(lz_header.proto_struct);
+	/* tag->size (aka. reserved field of header) is either passed size of kernel
+	 * from bootloader or 0 */
 	kernel_size = tag->size;
 	tag->size = 0;
 
@@ -477,21 +480,56 @@ asm_return_t lz_multiboot2()
 	tpm = enable_tpm();
 	tpm_request_locality(tpm, 2);
 
-	/* Extend PCR18 with MBI structure's hash; this includes all cmdlines */
-	extend_pcr(tpm, &tag, tag->size, 18, "Measured MBI into PCR18");
+	/* Extend PCR18 with MBI structure's hash; this includes all cmdlines.
+	 * Use 'type' and not 'size', as their offsets are swapped in the header! */
+	extend_pcr(tpm, &tag, tag->type, 18, "Measured MBI into PCR18");
 
 	tag++;
 
 	while (tag->type) {
 		if (tag->type == MULTIBOOT_TAG_TYPE_LOAD_BASE_ADDR) {
-			struct multiboot_tag_load_base_addr *ba = (struct multiboot_tag_load_base_addr *)tag;
+			struct multiboot_tag_load_base_addr *ba = (void *)tag;
 			kernel_entry = _p(ba->load_base_addr);
-			extend_pcr(tpm, kernel_entry, kernel_size, 17,
-			           "Measured Kernel into PCR17");
+			print("kernel_entry ");
+			print_p(kernel_entry);
+			print("\n");
 		}
 
+		/* This assumes that ELF has only one PROGBITS section, and that section
+		 * is the first one (i.e. it is loaded at load_base_addr). It is true
+		 * for Xen, but it's not always the case.
+		 *
+		 * Also, GRUB2 creates this tag after all module tags, so separate loop
+		 * is needed for consistent order of PCR extension operations. */
+		if (tag->type == MULTIBOOT_TAG_TYPE_ELF_SECTIONS) {
+			struct multiboot_tag_elf_sections *es_tag = (void *)tag;
+			for (i = 0; i < es_tag->num; i++) {
+				Elf32_Shdr *sh = (void *)&es_tag->sections[es_tag->entsize * i];
+				if (sh->sh_type == SHT_PROGBITS) {
+					kernel_size = sh->sh_size;
+					print("kernel_size ");
+					print_p(_p(kernel_size));
+					print("\n");
+					break;
+				}
+			}
+		}
+
+		if (kernel_entry && kernel_size)
+			break;
+
+		tag = multiboot_next_tag(tag);
+	}
+
+	extend_pcr(tpm, kernel_entry, kernel_size, 17,
+	           "Measured Kernel into PCR17");
+
+	tag = _p(lz_header.proto_struct);
+	tag++;
+
+	while (tag->type) {
 		if (tag->type == MULTIBOOT_TAG_TYPE_MODULE) {
-			struct multiboot_tag_module *mod = (struct multiboot_tag_module*)tag;
+			struct multiboot_tag_module *mod = (void *)tag;
 			print("Module '");
 			print(mod->cmdline);
 			print("' [");
