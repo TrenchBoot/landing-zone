@@ -64,6 +64,15 @@ GLOBAL(_entry)
 	/* Set up the Stage 1 stack. */
 	lea	LZ_FIRST_STAGE_STACK_START(%ebp), %esp
 
+	/*
+	 * Clobber IDTR.limit to prevent stray interrupts/exceptions/INT from
+	 * vectoring via the IVT into unmeasured code.
+	 */
+	push	$0
+	push	$0
+	lidt	(%esp)
+	add	$8, %esp
+
 	/* Clear R_INIT and DIS_A20M.  */
 	mov	$IA32_VM_CR, %ecx
 	rdmsr
