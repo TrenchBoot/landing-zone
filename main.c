@@ -18,7 +18,6 @@
 
 #include <defs.h>
 #include <types.h>
-#include <config.h>
 #include <boot.h>
 #include <pci.h>
 #include <dev.h>
