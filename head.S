@@ -20,7 +20,6 @@
  */
 
 #include <defs.h>
-#include <config.h>
 
 /* Selectors, CS and SS compatible with initial state after SKINIT */
 #define CS_SEL32         0x0008
@@ -37,7 +36,9 @@ GLOBAL(sl_header)
 ENDDATA(sl_header)
 
 lz_first_stack:
-	.fill LZ_FIRST_STAGE_STACK_SIZE, 1, 0
+	.fill 0x1fc, 1   /* Enough space for now */
+	.align 0x10, 0	 /* Ensure proper alignment for 64bit */
+.L_stack_base:
 ENDDATA(lz_first_stack)
 
 	.text
@@ -62,7 +63,7 @@ GLOBAL(_entry)
 	mov	%eax, %ebp
 
 	/* Set up the Stage 1 stack. */
-	lea	LZ_FIRST_STAGE_STACK_START(%ebp), %esp
+	lea	.L_stack_base(%ebp), %esp
 
 	/*
 	 * Clobber IDTR.limit to prevent stray interrupts/exceptions/INT from
