@@ -20,13 +20,10 @@
 #include <types.h>
 #include <boot.h>
 #include <pci.h>
-#include <dev.h>
 #include <tpm.h>
 #include <sha1sum.h>
 #include <sha256.h>
 #include <linux-bootparams.h>
-
-static u8 __page_data dev_table[3 * PAGE_SIZE];
 
 #ifdef DEBUG
 static void print_char(char c)
@@ -220,8 +217,6 @@ asm_return_t lz_main(void)
 	struct boot_params *bp;
 	struct kernel_info *ki;
 	struct mle_header *mle_header;
-	u64 pfn, end_pfn;
-	u32 dev;
 	void *pm_kernel_entry;
 	struct tpm *tpm;
 
@@ -236,25 +231,7 @@ asm_return_t lz_main(void)
 	/* The Zero Page with the boot_params and legacy header */
 	bp = _p(lz_header.zero_page_addr);
 
-	/* DEV CODE */
-
-	pfn = PAGE_PFN(bp);
-	end_pfn = PAGE_PFN(PAGE_DOWN(_start + 0x10000));
-
-	/* TODO: check end_pfn is not ouside of range of DEV map */
-
-	/* build protection bitmap */
-	for (;pfn <= end_pfn; pfn++) {
-		dev_protect_page(pfn, dev_table);
-	}
-
 	pci_init();
-	dev = dev_locate();
-	dev_load_map(dev, _u(dev_table));
-	dev_flush_cache(dev);
-
-	/* Set the DEV address for the TB stub to use */
-	bp->tb_dev_map = _u(dev_table);
 
 	print("\ncode32_start ");
 	print_p(_p(bp->code32_start));
