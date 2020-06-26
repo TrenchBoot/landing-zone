@@ -26,6 +26,7 @@
 /*** tpm_common.h ***/
 
 
+
 #define TPM_MMIO_BASE		0xFED40000
 #define TPM_MAX_LOCALITY	4
 
@@ -90,23 +91,114 @@ struct tpm_intf_capability {
 	};
 } __attribute__ ((packed));
 
+void tpm_mdelay(int ms);
+
+/*
+ * Timeouts defined in Table 16 from the TPM2 PTP and
+ * Table 15 from the PC Client TIS
+ */
+
+/* TPM Timeout A: 750ms */
+static inline void timeout_a(void)
+{
+	tpm_mdelay(750);
+}
+
+/* TPM Timeout B: 2000ms */
+static inline void timeout_b(void)
+{
+	tpm_mdelay(2000);
+}
+
+/* Timeouts C & D are different between 1.2 & 2.0 */
+/* TPM1.2 Timeout C: 750ms */
+static inline void tpm1_timeout_c(void)
+{
+	tpm_mdelay(750);
+}
+
+/* TPM1.2 Timeout D: 750ms */
+static inline void tpm1_timeout_d(void)
+{
+	tpm_mdelay(750);
+}
+
+/* TPM2 Timeout C: 200ms */
+static inline void tpm2_timeout_c(void)
+{
+	tpm_mdelay(200);
+}
+
+/* TPM2 Timeout D: 30ms */
+static inline void tpm2_timeout_d(void)
+{
+	tpm_mdelay(30);
+}
+
+/*
+ * Durations derived from Table 15 of the PTP but is purely an artifact of this
+ * implementation
+ */
+
+/* TPM Duration A: 20ms */
+static inline void duration_a(void)
+{
+	tpm_mdelay(20);
+}
+
+/* TPM Duration B: 750ms */
+static inline void duration_b(void)
+{
+	tpm_mdelay(750);
+}
+
+/* TPM Duration C: 1000ms */
+static inline void duration_c(void)
+{
+	tpm_mdelay(1000);
+}
+
+u8 tpm_read8(u32 field);
+void tpm_write8(unsigned char val, u32 field);
+u32 tpm_read32(u32 field);
+void tpm_write32(unsigned int val, u32 field);
+
 /*** tis.h ***/
 
+/* macros to access registers at locality ’’l’’ */
+#define ACCESS(l)			(0x0000 | ((l) << 12))
+#define STS(l)				(0x0018 | ((l) << 12))
+#define DATA_FIFO(l)			(0x0024 | ((l) << 12))
+#define DID_VID(l)			(0x0F00 | ((l) << 12))
+/* access bits */
+#define ACCESS_ACTIVE_LOCALITY		0x20 /* (R)*/
+#define ACCESS_RELINQUISH_LOCALITY	0x20 /* (W) */
+#define ACCESS_REQUEST_USE		0x02 /* (W) */
+/* status bits */
+#define STS_VALID			0x80 /* (R) */
+#define STS_COMMAND_READY		0x40 /* (R) */
+#define STS_DATA_AVAIL			0x10 /* (R) */
+#define STS_DATA_EXPECT			0x08 /* (R) */
+#define STS_GO				0x20 /* (W) */
 
+static inline int tis_data_available(int locality)
+{
+	int status;
 
-#define STATIC_TIS_BUFFER_SIZE 1024
+	status = tpm_read8(STS(locality));
+	return ((status & (STS_DATA_AVAIL | STS_VALID)) ==
+		(STS_DATA_AVAIL | STS_VALID));
+}
+
 /* TPM Interface Specification functions */
 u8 tis_request_locality(u8 l);
 void tis_relinquish_locality(void);
 u8 tis_init(struct tpm *t);
 size_t tis_send(struct tpmbuff *buf);
-size_t tis_recv(struct tpmbuff *buf);
+size_t tis_recv(enum tpm_family f, struct tpmbuff *buf);
 
 /*** crb.h ***/
 
-
-
-#define STATIC_TIS_BUFFER_SIZE 1024
 /* TPM Interface Specification functions */
 u8 crb_request_locality(u8 l);
 void crb_relinquish_locality(void);
@@ -210,11 +302,9 @@ struct tpm_extend_resp {
 };
 
 /* TPM Commands */
-u8 tpm1_pcr_extend(struct tpm *t, struct tpm_digest *d);
+int tpm1_pcr_extend(struct tpm *t, struct tpm_digest *d);
 
 /*** tpm2.h ***/
-
-
 
 
 
@@ -227,7 +317,7 @@ struct tpm2b {
 };
 
 // Table 32  Definition of TPMA_SESSION Bits <  IN/OUT>
-struct tpma_session{
+struct tpma_session {
 	u8 continue_session  : 1;
 	u8 audit_exclusive   : 1;
 	u8 audit_reset       : 1;
@@ -268,15 +358,17 @@ struct tpms_auth_resp {
 
 struct tpm2_cmd {
 	struct tpm_header *header;
-	u32 *handles;		/* TPM_HANDLE		*/
-	u8 *auth;		/* Authorization Area	*/
-	u8 *params;		/* Parameters		*/
-	u8 *raw;		/* internal raw buffer	*/
+	u32 *handles;			/* TPM Handles array	*/
+	u32 *auth_size;			/* Size of Auth Area	*/
+	u8 *auth;			/* Authorization Area	*/
+	u8 *params;			/* Parameters		*/
+	u8 *raw;			/* internal raw buffer	*/
 };
 
 struct tpm2_resp {
 	struct tpm_header *header;
-	u32 *handles;		/* TPM_HANDLE		*/
+	u32 *handles;		/* TPM Handles array	*/
+	u32 *param_size;	/* Size of Parameters	*/
 	struct tpm2b *params;	/* Parameters		*/
 	u8 *auth;		/* Authorization Area	*/
 	u8 *raw;		/* internal raw buffer	*/
@@ -288,7 +380,7 @@ int tpm2_extend_pcr(struct tpm *t, u32 pcr,
 /*** tpm2_constants.h ***/
 
 
-// Table 9  Definition of (UINT16) TPM_ALG_ID Constants <IN/OUT, S>
+/* Table 9  Definition of (UINT16) TPM_ALG_ID Constants <IN/OUT, S> */
 #define TPM_ALG_ERROR                (u16)(0x0000)
 #define TPM_ALG_RSA                  (u16)(0x0001)
 #define TPM_ALG_SHA                  (u16)(0x0004)
@@ -328,14 +420,14 @@ int tpm2_extend_pcr(struct tpm *t, u32 pcr,
 #define TPM_ALG_FIRST                (u16)(0x0001)
 #define TPM_ALG_LAST                 (u16)(0x0044)
 
-// Table 12  Definition of (UINT32) TPM_CC Constants (Numeric Order) <IN/OUT, S>
+/* Table 12  Definition of (UINT32) TPM_CC Constants (Numeric Order) <IN/OUT, S> */
 #define TPM_CC_PCR_EXTEND (u32)(0x00000182)
 
-// Table 19  Definition of (UINT16) TPM_ST Constants <IN/OUT, S>
+/* Table 19  Definition of (UINT16) TPM_ST Constants <IN/OUT, S> */
 #define TPM_ST_NO_SESSIONS (u16)(0x8001)
 #define TPM_ST_SESSIONS (u16)(0x8002)
 
-// Table 28  Definition of (TPM_HANDLE) TPM_RH Constants <S>
+/* Table 28  Definition of (TPM_HANDLE) TPM_RH Constants <S> */
 #define TPM_RS_PW (u32)(0x40000009)
 
 /*** tpm2_auth.h ***/

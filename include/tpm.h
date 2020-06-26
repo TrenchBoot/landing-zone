@@ -57,7 +57,7 @@ struct tpm {
 };
 
 struct tpm *enable_tpm(void);
-void tpm_request_locality(struct tpm *t, u8 l);
+u8 tpm_request_locality(struct tpm *t, u8 l);
 void tpm_relinquish_locality(struct tpm *t);
 int tpm_extend_pcr(struct tpm *t, u32 pcr, u16 algo,
 		u8 *digest);
@@ -83,7 +83,7 @@ void tpmb_free(struct tpmbuff *b);
 u8 *tpmb_put(struct tpmbuff *b, size_t size);
 size_t tpmb_trim(struct tpmbuff *b, size_t size);
 size_t tpmb_size(struct tpmbuff *b);
-struct tpmbuff *alloc_tpmbuff(enum tpm_hw_intf i, u8 locality);;
+struct tpmbuff *alloc_tpmbuff(enum tpm_hw_intf i, u8 locality);
 void free_tpmbuff(struct tpmbuff *b, enum tpm_hw_intf i);
 
 

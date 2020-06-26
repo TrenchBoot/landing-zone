@@ -55,4 +55,7 @@
 #define	EDOM		33	/* Math argument out of domain of func */
 #define	ERANGE		34	/* Math result not representable */
 
+
+#define	EBADRQC		56	/* Invalid request code */
+
 #endif
