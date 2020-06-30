@@ -47,11 +47,24 @@ typedef struct __packed sl_header {
 } sl_header_t;
 extern sl_header_t sl_header;
 
+/* The same as TPML_DIGEST_VALUES but little endian, as event log expects it */
+typedef struct __packed ev_log_hash {
+	u32 count;
+	u16 sha1_id;
+	u8 sha1_hash[20];
+	u16 sha256_id;
+	u8 sha256_hash[32];
+} ev_log_hash_t;
+
+/* Keep in sync with head.S and sanity_check.sh */
 typedef struct __packed lz_header {
 	u8  uuid[16]; /* 78 f1 26 8e 04 92 11 e9  83 2a c8 5b 76 c4 cc 02 */
 	u32 slaunch_loader_size;
 	u32 zero_page_addr;
+	u32 event_log_addr;
+	u32 event_log_size;
 	u8  msb_key_hash[20];
+	ev_log_hash_t lz_hashes;
 } lz_header_t;
 extern lz_header_t lz_header;
 
