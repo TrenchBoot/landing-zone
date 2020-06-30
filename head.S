@@ -256,13 +256,22 @@ ENDDATA(l4_identmap)
 
 	.section .bootloader_data, "a", @progbits
 
-GLOBAL(lz_header) /* The LZ header setup by the bootloader */
-	.long	0x8e26f178 /* UUID */
+GLOBAL(lz_header)		/* Set up by the bootloader, keep in sync with boot.h */
+	.long	0x8e26f178	/* UUID */
 	.long	0xe9119204
 	.long	0x5bc82a83
 	.long	0x02ccc476
-	.long	0 /* Total size of Trenchboot Intermediate Loader */
-		  /* bzImage (padded out to next page) */
-	.long	0 /* Zero Page address */
-	.fill	0x14 /* MSB Key Hash */
+	.long	0			/* Total size of Trenchboot Intermediate Loader */
+						/* bzImage (padded out to next page) */
+	.long	0			/* Zero Page address */
+	.long	0			/* Event Log address */
+	.long	0			/* Event Log size */
+	.fill	0x14		/* MSB Key Hash */
+
+	/* Hashes of LZ to be written to DRTM TPM event log */
+	.long	2			/* count */
+	.word	0x0004		/* sha1_id */
+	.fill   0x14		/* sha1_hash */
+	.word	0x000B		/* sha256_id */
+	.fill   0x20		/* sha256_hash */
 ENDDATA(lz_header)
