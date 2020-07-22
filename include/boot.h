@@ -42,7 +42,7 @@
 extern const char _start[];
 
 typedef struct __packed sl_header {
-	u16 lz_offet;
+	u16 lz_offset;
 	u16 lz_length;
 } sl_header_t;
 extern sl_header_t sl_header;

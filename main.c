@@ -147,7 +147,7 @@ static void extend_pcr(struct tpm *tpm, void *data, u32 size, u32 pcr, char *ev)
 	sha1sum(hash, data, size);
 	print("shasum calculated:\n");
 	hexdump(hash, SHA1_DIGEST_SIZE);
-	tpm_extend_pcr(tpm, pcr, TPM_HASH_ALG_SHA1, hash);
+	tpm_extend_pcr(tpm, pcr, TPM_ALG_SHA1, hash);
 
 	if (tpm->family == TPM12) {
 		log_event_tpm12(pcr, hash, ev);
@@ -157,7 +157,7 @@ static void extend_pcr(struct tpm *tpm, void *data, u32 size, u32 pcr, char *ev)
 		sha256sum(sha256_hash, data, size);
 		print("shasum calculated:\n");
 		hexdump(sha256_hash, SHA256_DIGEST_SIZE);
-		tpm_extend_pcr(tpm, pcr, TPM_HASH_ALG_SHA256, &sha256_hash[0]);
+		tpm_extend_pcr(tpm, pcr, TPM_ALG_SHA256, &sha256_hash[0]);
 
 		log_event_tpm20(pcr, hash, sha256_hash, ev);
 	}
@@ -434,7 +434,8 @@ asm_return_t lz_main(void)
 	event_log_init(tpm);
 
 	/* extend TB Loader code segment into PCR17 */
-	extend_pcr(tpm, _p(bp->code32_start), bp->syssize << 4, 17, "Kernel");
+	extend_pcr(tpm, _p(bp->code32_start), bp->syssize << 4, 17,
+	           "Measured Kernel into PCR17");
 
 	tpm_relinquish_locality(tpm);
 	free_tpm(tpm);
