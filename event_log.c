@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (C) 2020 3mdeb Embedded Systems Consulting
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -20,6 +20,7 @@
 #include "tpmlib/tpm.h"
 #include "tpmlib/tpm2_constants.h"
 
+static u8 *evtlog_base;
 static u8 *ptr_current;
 static u8 *limit;
 
@@ -51,13 +52,31 @@ static int strlen(const char *p)
 
 #define HASH_COUNT 2
 
+/* For compatibility with TXT and easier operations */
+
+#define TPM12_EVTLOG_SIGNATURE "TXT Event Container"
+
 typedef struct __packed {
-	u32 pcr;
-	u32 event_type;
-	u8  digest[20];
-	u32 event_size;
-	/* u8 event[]; */
-} tpm12_event_t;
+	char signature[20];
+	char reserved[12];
+	u8 container_ver_major;
+	u8 container_ver_minor;
+	u8 pcr_event_ver_major;
+	u8 pcr_event_ver_minor;
+	u32 container_size;
+	u32 pcr_events_offset;
+	u32 next_event_offset;
+	/* PCREvents[] */
+} tpm12_event_log_header;
+
+typedef struct __packed {
+	u64 phys_addr;
+	u32 allocated_event_container_size;
+	u32 first_record_offset;
+	u32 next_record_offset;
+} txt_event_log_pointer2_1_element;
+
+/* Event log headers */
 
 typedef struct __packed {
 	char signature[16];
@@ -71,7 +90,7 @@ typedef struct __packed {
 typedef struct __packed {
 	common_spec_id_ev_t c;
 	u8   vendor_info_size;
-	/* u8 vendor_info[]; */
+	tpm12_event_log_header hdr;				/* AKA u8 vendor_info[]; */
 } tpm12_spec_id_ev_t;
 
 typedef struct __packed {
@@ -87,8 +106,18 @@ typedef struct __packed {
 	common_spec_id_ev_t c;
 	tpm20_digest_sizes_t sizes;
 	u8   vendor_info_size;
-	/* u8   vendor_info[]; */
+	txt_event_log_pointer2_1_element el;	/* AKA u8 vendor_info[]; */
 } tpm20_spec_id_ev_t;
+
+/* Event log entries */
+
+typedef struct __packed {
+	u32 pcr;
+	u32 event_type;
+	u8  digest[20];
+	u32 event_size;
+	/* u8 event[]; */
+} tpm12_event_t;
 
 typedef struct __packed {
 	u32 pcr;
@@ -98,14 +127,28 @@ typedef struct __packed {
 	/* u8 event[]; */
 } tpm20_event_t;
 
-static const tpm12_spec_id_ev_t tpm12_id_struct = {
+static tpm12_spec_id_ev_t tpm12_id_struct = {
 	.c.signature = "Spec ID Event00",
 	.c.spec_ver_minor = 2,
 	.c.spec_ver_major = 1,
-	.c.errata = 1
+	.c.errata = 1,
+	.vendor_info_size = sizeof(tpm12_event_log_header),
+	.hdr.signature = TPM12_EVTLOG_SIGNATURE,
+	.hdr.container_ver_major = 1,
+	.hdr.container_ver_minor = 0,
+	.hdr.pcr_event_ver_major = 1,
+	.hdr.pcr_event_ver_minor = 0,
+	/*
+	 * HACK: this offset should be relative to the base of Event Log, but TXT
+	 * creates its log starting with the .hdr.signature, not .c.signature.
+	 * Linux kernel sets its evtlog_base to the address of the former one in
+	 * order to use the same code for both of the supported CPU vendors.
+	 */
+	.hdr.pcr_events_offset = sizeof(tpm12_event_log_header),
+	.hdr.next_event_offset = sizeof(tpm12_event_log_header)
 };
 
-static const tpm20_spec_id_ev_t tpm20_id_struct = {
+static tpm20_spec_id_ev_t tpm20_id_struct = {
 	.c.signature = "Spec ID Event03",
 	.c.spec_ver_minor = 0,
 	.c.spec_ver_major = 2,
@@ -115,12 +158,17 @@ static const tpm20_spec_id_ev_t tpm20_id_struct = {
 	.sizes.digest_sizes[0].id = TPM_ALG_SHA1,
 	.sizes.digest_sizes[0].size = 20,
 	.sizes.digest_sizes[1].id = TPM_ALG_SHA256,
-	.sizes.digest_sizes[1].size = 32
+	.sizes.digest_sizes[1].size = 32,
+	.vendor_info_size = sizeof(txt_event_log_pointer2_1_element),
+	.el.first_record_offset = sizeof(tpm20_spec_id_ev_t) + sizeof(tpm12_event_t),
+	.el.next_record_offset = sizeof(tpm20_spec_id_ev_t) + sizeof(tpm12_event_t)
 };
 
 int log_event_tpm12(u32 pcr, u8 sha1[20], char *event)
 {
 	tpm12_event_t ev;
+	tpm12_spec_id_ev_t *base = (tpm12_spec_id_ev_t *)
+								(evtlog_base + sizeof(tpm12_event_t));
 
 	ev.pcr = pcr;
 	ev.event_type = EV_TYPE_CODE;
@@ -128,6 +176,7 @@ int log_event_tpm12(u32 pcr, u8 sha1[20], char *event)
 	ev.event_size = strlen(event);
 
 	if (HAS_ENOUGH_SPACE(sizeof(ev) + ev.event_size)) {
+		base->hdr.next_event_offset += sizeof(ev) + ev.event_size;
 		log_write(&ev, sizeof(ev));
 		return log_write(event, ev.event_size);
 	}
@@ -138,6 +187,8 @@ int log_event_tpm12(u32 pcr, u8 sha1[20], char *event)
 int log_event_tpm20(u32 pcr, u8 sha1[20], u8 sha256[32], char *event)
 {
 	tpm20_event_t ev;
+	tpm20_spec_id_ev_t *base = (tpm20_spec_id_ev_t *)
+								(evtlog_base + sizeof(tpm12_event_t));
 
 	ev.pcr = pcr;
 	ev.event_type = EV_TYPE_CODE;
@@ -149,6 +200,7 @@ int log_event_tpm20(u32 pcr, u8 sha1[20], u8 sha256[32], char *event)
 	ev.event_size = strlen(event);
 
 	if (HAS_ENOUGH_SPACE(sizeof(ev) + ev.event_size)) {
+		base->el.next_record_offset += sizeof(ev) + ev.event_size;
 		log_write(&ev, sizeof(ev));
 		return log_write(event, ev.event_size);
 	}
@@ -180,7 +232,7 @@ int event_log_init(struct tpm *tpm)
 	if (lz_header.event_log_size < min_size)
 		goto err;
 
-	ptr_current = _p(lz_header.event_log_addr);
+	ptr_current = evtlog_base = _p(lz_header.event_log_addr);
 	limit = _p(lz_header.event_log_addr + lz_header.event_log_size);
 
 	/* Check for overflow */
@@ -194,6 +246,11 @@ int event_log_init(struct tpm *tpm)
 	 */
 	if (! ((_p(limit) < _p(_start)) || (_p(&lz_header) < _p(ptr_current))))
 		goto err;
+
+	tpm12_id_struct.hdr.container_size =
+			tpm20_id_struct.el.allocated_event_container_size =
+			lz_header.event_log_size;
+	tpm20_id_struct.el.phys_addr = _u(evtlog_base);
 
 	memset(ptr_current, 0, lz_header.event_log_size);
 
@@ -222,20 +279,28 @@ int event_log_init(struct tpm *tpm)
 	/* Log what was done by SKINIT */
 	if (tpm->family == TPM12) {
 		tpm12_event_t ev;
+		tpm12_spec_id_ev_t *base = (tpm12_spec_id_ev_t *)
+									(evtlog_base + sizeof(tpm12_event_t));
 
 		ev.pcr = 17;
 		ev.event_type = EV_TYPE_SKINIT;
 		memcpy(&ev.digest, &lz_header.lz_hashes.sha1_hash, 20);
 		ev.event_size = 0;
 
+		base->hdr.next_event_offset += sizeof(ev) + ev.event_size;
+
 		return log_write(&ev, sizeof(ev));
 	} else {
 		tpm20_event_t ev;
+		tpm20_spec_id_ev_t *base = (tpm20_spec_id_ev_t *)
+									(evtlog_base + sizeof(tpm12_event_t));
 
 		ev.pcr = 17;
 		ev.event_type = EV_TYPE_SKINIT;
 		memcpy(&ev.digests, &lz_header.lz_hashes, sizeof(ev.digests));
 		ev.event_size = 0;
+
+		base->el.next_record_offset += sizeof(ev) + ev.event_size;
 
 		return log_write(&ev, sizeof(ev));
 	}
