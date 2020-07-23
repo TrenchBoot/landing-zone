@@ -92,7 +92,7 @@ static inline u32 ioread32(void *addr)
 	return val;
 }
 
-static inline void iowrite8(void *addr, u8 val)
+static inline void iowrite8(u8 val, void *addr)
 {
 
 	wmb();
@@ -100,7 +100,7 @@ static inline void iowrite8(void *addr, u8 val)
 	barrier();
 }
 
-static inline void iowrite16(void *addr, u16 val)
+static inline void iowrite16(u16 val, void *addr)
 {
 
 	wmb();
@@ -108,7 +108,7 @@ static inline void iowrite16(void *addr, u16 val)
 	barrier();
 }
 
-static inline void iowrite32(void *addr, u32 val)
+static inline void iowrite32(u32 val, void *addr)
 {
 	wmb();
 	(*(volatile u32 *)(addr)) = val;
@@ -140,17 +140,17 @@ static inline u32 inl(u16 port)
 	return val;
 }
 
-static inline void outb(u16 port, u8 val)
+static inline void outb(u8 val, u16 port)
 {
 	asm volatile("outb %0,%1" : : "a" (val), "dN" (port));
 }
 
-static inline void outw(u16 port, u16 val)
+static inline void outw(u16 val, u16 port)
 {
 	asm volatile("outw %0,%1" : : "a" (val), "dN" (port));
 }
 
-static inline void outl(u16 port, u32 val)
+static inline void outl(u32 val, u16 port)
 {
 	asm volatile("outl %0,%1" : : "a" (val), "dN" (port));
 }

@@ -143,16 +143,16 @@ static int pci_mmio_write(unsigned int seg, unsigned int bus,
 	switch (len)
 	{
 	case 1:
-		iowrite8(addr, (u8)value);
+		iowrite8((u8)value, addr);
 		break;
 	case 2:
-		iowrite16((void *)((size_t)addr & ~1UL), (u16)value);
+		iowrite16((u16)value, (void *)((size_t)addr & ~1UL));
 		break;
 	case 3:
-		iowrite16((void *)((size_t)addr & ~3UL), (u16)value);
+		iowrite16((u16)value, (void *)((size_t)addr & ~3UL));
 		break;
 	case 4:
-		iowrite32((void *)((size_t)addr & ~3UL), (u32)value);
+		iowrite32((u32)value, (void *)((size_t)addr & ~3UL));
 		break;
 	}
 	return 0;
