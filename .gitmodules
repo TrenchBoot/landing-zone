@@ -1,0 +1,3 @@
+[submodule "tpmlib"]
+	path = tpmlib
+	url = https://github.com/TrenchBoot/tpmlib.git
