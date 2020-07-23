@@ -20,7 +20,8 @@
 #include <types.h>
 #include <boot.h>
 #include <pci.h>
-#include <tpm.h>
+#include "tpmlib/tpm.h"
+#include "tpmlib/tpm2_constants.h"
 #include <sha1sum.h>
 #include <sha256.h>
 #include <linux-bootparams.h>
@@ -146,7 +147,7 @@ static void extend_pcr(struct tpm *tpm, void *data, u32 size, u32 pcr)
 		sha1sum(hash, data, size);
 		print("shasum calculated:\n");
 		hexdump(hash, SHA1_DIGEST_SIZE);
-		tpm_extend_pcr(tpm, pcr, TPM_HASH_ALG_SHA1, hash);
+		tpm_extend_pcr(tpm, pcr, TPM_ALG_SHA1, hash);
 		print("PCR extended\n");
 	} else if (tpm->family == TPM20) {
 		u8 sha256_hash[SHA256_DIGEST_SIZE];
@@ -154,7 +155,7 @@ static void extend_pcr(struct tpm *tpm, void *data, u32 size, u32 pcr)
 		sha256sum(sha256_hash, data, size);
 		print("shasum calculated:\n");
 		hexdump(sha256_hash, SHA256_DIGEST_SIZE);
-		tpm_extend_pcr(tpm, pcr, TPM_HASH_ALG_SHA256, &sha256_hash[0]);
+		tpm_extend_pcr(tpm, pcr, TPM_ALG_SHA256, &sha256_hash[0]);
 		print("PCR extended\n");
 	}
 }

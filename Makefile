@@ -27,10 +27,12 @@ CFLAGS  += -Os -g -MMD -MP -march=btver2 -mno-sse -mno-mmx -fpie -fomit-frame-po
 CFLAGS  += -Iinclude -ffreestanding -fno-common -Wall -Werror
 LDFLAGS += -nostdlib -no-pie -Wl,--build-id=none
 
+CFLAGS_TPMLIB := -include boot.h -include errno-base.h -include byteswap.h -DEBADRQC=EINVAL
+
 # Derive AFLAGS from CFLAGS
 AFLAGS := -D__ASSEMBLY__ $(filter-out -std=%,$(CFLAGS))
 
-ALL_SRC := $(wildcard *.c)
+ALL_SRC := $(wildcard *.c) $(wildcard tpmlib/*.c)
 TESTS := $(filter test-%,$(ALL_SRC:.c=))
 
 # Collect objects for building.  For simplicity, we take all ASM/C files except tests
@@ -54,6 +56,9 @@ lz_header.bin: lz_header Makefile
 
 lz_header: link.lds $(OBJ) Makefile
 	$(CC) -Wl,-T,link.lds $(LDFLAGS) $(OBJ) -o $@
+
+tpmlib/%.o: tpmlib/%.c Makefile
+	$(CC) $(CFLAGS) $(CFLAGS_TPMLIB) -o $@ -c $<
 
 %.o: %.c Makefile
 	$(CC) $(CFLAGS) -o $@ -c $<
@@ -87,7 +92,7 @@ cscope:
 
 .PHONY: clean
 clean:
-	rm -f lz_header.bin lz_header $(TESTS) *.d *.o cscope.*
+	rm -f lz_header.bin lz_header $(TESTS) *.d *.o tpmlib/*.d tpmlib/*.o cscope.*
 
 # Compiler-generated header dependencies.  Should be last.
 -include $(OBJ:.o=.d) $(TESTS:=.d)

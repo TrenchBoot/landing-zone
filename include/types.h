@@ -58,6 +58,8 @@ typedef unsigned long	uintptr_t;
 typedef unsigned long	size_t;
 typedef long		ssize_t;
 
+typedef _Bool		bool;
+
 #define NULL ((void *)0)
 
 /*
