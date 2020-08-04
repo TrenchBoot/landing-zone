@@ -1,5 +1,7 @@
 stages:
   - build
+variables:
+  GIT_SUBMODULE_STRATEGY: recursive
 
 build_debug_disabled:
   stage: build
