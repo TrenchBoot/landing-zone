@@ -32,8 +32,9 @@
 	.section .headers, "ax", @progbits
 
 GLOBAL(sl_header)
-	.word	_entry   /* SL header LZ offset to code start */
-	.word	_sl_end  /* SL header LZ measured length */
+	.word	_entry           /* SL header LZ offset to code start */
+	.word	bootloader_data  /* SL header LZ measured length */
+	.word	lz_info
 ENDDATA(sl_header)
 
 GLOBAL(lz_stack_canary)
@@ -268,24 +269,18 @@ l4_identmap: /* 1x L4 page, mapping the L3 page. 1 relocation. */
 ENDDATA(l4_identmap)
 #endif
 
-	.section .bootloader_data, "a", @progbits
 
-GLOBAL(lz_header)		/* Set up by the bootloader, keep in sync with boot.h */
+	.section .lz_info, "a", @progbits
+GLOBAL(lz_info)
 	.long	0x8e26f178	/* UUID */
 	.long	0xe9119204
 	.long	0x5bc82a83
 	.long	0x02ccc476
-boot_protocol:
-	.long	0 		/* Boot protocol used */
-	.long	0 		/* Address of the relevant structure of given protocol */
-	.long	0		/* Event Log address */
-	.long	0		/* Event Log size */
+	.long	0			/* Version */
+	.word	0			/* MSB Key Algorithm */
 	.fill	0x14		/* MSB Key Hash */
+ENDDATA(lz_info)
 
-	/* Hashes of LZ to be written to DRTM TPM event log */
-	.long	2		/* count */
-	.word	0x0004		/* sha1_id */
-	.fill   0x14		/* sha1_hash */
-	.word	0x000B		/* sha256_id */
-	.fill   0x20		/* sha256_hash */
-ENDDATA(lz_header)
+	.section .bootloader_data, "a", @progbits
+GLOBAL(bootloader_data)
+	.word	0			/* Dummy data to make sure that file isn't truncated */
