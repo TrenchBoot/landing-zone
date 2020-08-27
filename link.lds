@@ -49,8 +49,11 @@ SECTIONS
 		*(.page_data)
 	}
 
+	.lz_info : {
+		*(.lz_info)
+	}
+
 	. = ALIGN(8);
-	_sl_end = .;
 
 	/*
 	 * Bootloader must pass non-constant data (e.g. address of zeropage). Keep
