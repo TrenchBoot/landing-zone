@@ -37,11 +37,14 @@ GLOBAL(sl_header)
 	.word	_sl_end  /* SL header LZ measured length */
 ENDDATA(sl_header)
 
-lz_first_stack:
-	.fill 0x1fc, 1   /* Enough space for now */
-	.align 0x10, 0	 /* Ensure proper alignment for 64bit */
+GLOBAL(lz_stack_canary)
+	.long STACK_CANARY
+ENDDATA(lz_stack_canary)
+lz_stack:
+	.fill 0x280, 1, 0xcc   /* Enough space for now */
+	.align 0x10, 0         /* Ensure proper alignment for 64bit */
 .L_stack_base:
-ENDDATA(lz_first_stack)
+ENDDATA(lz_stack)
 
 	.text
 	.code32
@@ -131,13 +134,8 @@ GLOBAL(_entry)
 1:
 #endif	/* 64bit setup. */
 
-	cmpl	$0, boot_protocol(%ebp)
-	jne	1f
 	call	lz_main
-	jmp	2f
-1:
-	call	lz_multiboot2
-2:
+
 	/*
 	 * lz_main() is magic.  It returns two pointers by register:
 	 *
@@ -182,18 +180,18 @@ GLOBAL(_entry)
 	push	$0
 	popf
 
-	cmpl	$0, boot_protocol(%ebp)
-	jne	1f
+	cmpl	$MULTIBOOT2, boot_protocol(%ebp)
+	je	multiboot2_kernel
 
-	/* Jump to entry target - EBX: startup_32 ESI: ZP base EDX: LZ base */
+	/* Jump to entry target - EBX: startup_32, ESI: ZP base, EDX: LZ base */
 	mov	%ebp, %edx
 	jmp	*%ebx
 
-1:
-	mov	%ebx, %ecx
-	mov	%esi, %ebx
+multiboot2_kernel:
+	/* Jump to entry target - EBX: MBI pointer, EAX: Multiboot2 magic number */
+	xchg	%esi, %ebx
 	mov	$MULTIBOOT2_BOOTLOADER_MAGIC, %eax
-	jmp *%ecx
+	jmp *%esi
 ENDFUNC(_entry)
 
 	.data
