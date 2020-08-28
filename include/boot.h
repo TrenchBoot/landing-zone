@@ -40,6 +40,7 @@
 #define __BOOT_H__
 
 extern const char _start[];
+extern volatile u32 lz_stack_canary;
 
 typedef struct __packed sl_header {
 	u16 lz_offset;
@@ -55,9 +56,6 @@ typedef struct __packed ev_log_hash {
 	u16 sha256_id;
 	u8 sha256_hash[32];
 } ev_log_hash_t;
-
-#define LINUX_BOOT	0
-#define MULTIBOOT2	2
 
 /* Keep in sync with head.S and sanity_check.sh */
 typedef struct __packed lz_header {
