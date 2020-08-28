@@ -91,7 +91,7 @@ static inline int isprint(int c)
 	return c >= ' ' && c <= '~';
 }
 
-void hexdump(const void *memory, size_t length)
+static void hexdump(const void *memory, size_t length)
 {
 	int i;
 	u8 *line;
@@ -218,26 +218,15 @@ typedef struct {
 	void *zero_page;       /* %edx */
 } asm_return_t;
 
-asm_return_t lz_main(void)
+static asm_return_t lz_linux(struct tpm *tpm)
 {
 	struct boot_params *bp;
 	struct kernel_info *ki;
 	struct mle_header *mle_header;
 	void *pm_kernel_entry;
-	struct tpm *tpm;
-
-	/*
-	 * Now in 64b mode, paging is setup. This is the launching point. We can
-	 * now do what we want. First order of business is to setup
-	 * DEV to cover memory from the start of bzImage to the end of the LZ
-	 * "kernel". At the end, trampoline to the PM entry point which will
-	 * include the Secure Launch stub.
-	 */
 
 	/* The Zero Page with the boot_params and legacy header */
 	bp = _p(lz_header.proto_struct);
-
-	pci_init();
 
 	print("\ncode32_start ");
 	print_p(_p(bp->code32_start));
@@ -264,47 +253,23 @@ asm_return_t lz_main(void)
 		reboot();
 	}
 
-	/*
-	 * TODO Note these functions can fail but there is no clear way to
-	 * report the error unless SKINIT has some resource to do this. For
-	 * now, if an error is returned, this code will most likely just crash.
-	 */
-	tpm = enable_tpm();
-	tpm_request_locality(tpm, 2);
-	event_log_init(tpm);
-
 	/* extend TB Loader code segment into PCR17 */
 	extend_pcr(tpm, _p(bp->code32_start), bp->syssize << 4, 17,
 	           "Measured Kernel into PCR17");
 
-	tpm_relinquish_locality(tpm);
-	free_tpm(tpm);
-
-	/* End of the line, off to the protected mode entry into the kernel */
-	print("pm_kernel_entry:\n");
-	hexdump(pm_kernel_entry, 0x100);
-	print("zero_page:\n");
-	hexdump(bp, 0x280);
-	print("lz_base:\n");
-	hexdump(_start, 0x100);
-	print("TPM event log:\n");
-	hexdump(_p(lz_header.event_log_addr), lz_header.event_log_size);
-
-	print("lz_main() is about to exit\n");
-
 	return (asm_return_t){ pm_kernel_entry, bp };
 }
 
-asm_return_t lz_multiboot2()
+static asm_return_t lz_multiboot2(struct tpm *tpm)
 {
 	void *kernel_entry = NULL;
-	struct tpm *tpm;
-	u32 kernel_size;
+	u32 kernel_size, mbi_len;
+	struct multiboot_tag *tag;
 	int i;
 
 	/* This is MBI header, not a tag, but their structures are similar enough.
 	 * Note that 'size' offsets are reversed in those two! */
-	struct multiboot_tag *tag = _p(lz_header.proto_struct);
+	tag = _p(lz_header.proto_struct);
 	/* tag->size (aka. reserved field of header) is either passed size of kernel
 	 * from bootloader or 0 */
 	kernel_size = tag->size;
@@ -312,12 +277,10 @@ asm_return_t lz_multiboot2()
 
 	/* TODO: DEV or IOMMU, switch SLB protection off */
 
-	tpm = enable_tpm();
-	tpm_request_locality(tpm, 2);
-
 	/* Extend PCR18 with MBI structure's hash; this includes all cmdlines.
 	 * Use 'type' and not 'size', as their offsets are swapped in the header! */
-	extend_pcr(tpm, &tag, tag->type, 18, "Measured MBI into PCR18");
+	mbi_len = tag->type;
+	extend_pcr(tpm, &tag, mbi_len, 18, "Measured MBI into PCR18");
 
 	tag++;
 
@@ -332,7 +295,7 @@ asm_return_t lz_multiboot2()
 
 		/* This assumes that ELF has only one PROGBITS section, and that section
 		 * is the first one (i.e. it is loaded at load_base_addr). It is true
-		 * for Xen, but it's not always the case.
+		 * for Xen, but may not always the case.
 		 *
 		 * Also, GRUB2 creates this tag after all module tags, so separate loop
 		 * is needed for consistent order of PCR extension operations. */
@@ -371,21 +334,84 @@ asm_return_t lz_multiboot2()
 			print_p(_p(mod->mod_start));
 			print_p(_p(mod->mod_end));
 			print("]\n");
-			extend_pcr(tpm, _p(mod->mod_start), mod->mod_end - mod->mod_start, 17, mod->cmdline);
+			extend_pcr(tpm, _p(mod->mod_start), mod->mod_end - mod->mod_start,
+			           17, mod->cmdline);
 		}
 
 		tag = multiboot_next_tag(tag);
 	}
 
-	tpm_relinquish_locality(tpm);
-	free_tpm(tpm);
+	/* Safety checks */
+	if (tag->size != 8
+	    || _p(multiboot_next_tag(tag)) > _p(lz_header.proto_struct) + mbi_len) {
+		print("MBI safety checks failed\n");
+		reboot();
+	}
 
-	print("lz_multiboot2 returning\n");
-
-	/* Xen sends self-NMI which would be blocked without stgi() */
+	/* Xen sends self-NMI which would be blocked without stgi()
+	 * TODO: remove this after Xen is TrenchBoot-aware, or when there is a
+	 * switch for unaware OS in LZ boot protocol */
 	stgi();
 
 	return (asm_return_t){ kernel_entry, _p(lz_header.proto_struct) };
+}
+
+asm_return_t lz_main(void)
+{
+	asm_return_t ret;
+	struct tpm *tpm;
+
+	/*
+	 * Now in 64b mode, paging is setup. This is the launching point. We can
+	 * now do what we want. First order of business is to setup
+	 * DEV to cover memory from the start of bzImage to the end of the LZ
+	 * "kernel". At the end, trampoline to the PM entry point which will
+	 * include the Secure Launch stub.
+	 */
+	pci_init();
+
+	/*
+	 * TODO Note these functions can fail but there is no clear way to
+	 * report the error unless SKINIT has some resource to do this. For
+	 * now, if an error is returned, this code will most likely just crash.
+	 */
+	tpm = enable_tpm();
+	tpm_request_locality(tpm, 2);
+	event_log_init(tpm);
+
+	switch(lz_header.boot_protocol) {
+		case LINUX_BOOT:
+			ret = lz_linux(tpm);
+			break;
+		case MULTIBOOT2:
+			ret = lz_multiboot2(tpm);
+			break;
+		default:
+			print("Unknown kernel boot protocol\n");
+			reboot();
+	}
+
+	tpm_relinquish_locality(tpm);
+	free_tpm(tpm);
+
+	/* End of the line, off to the protected mode entry into the kernel */
+	print("pm_kernel_entry:\n");
+	hexdump(ret.pm_kernel_entry, 0x100);
+	print("zero_page:\n");
+	hexdump(ret.zero_page, 0x280);
+	print("lz_base:\n");
+	hexdump(_start, 0x100);
+	print("TPM event log:\n");
+	hexdump(_p(lz_header.event_log_addr), lz_header.event_log_size);
+
+	if (lz_stack_canary != STACK_CANARY) {
+		print("Stack is too small, possible corruption\n");
+		reboot();
+	}
+
+	print("lz_main() is about to exit\n");
+
+	return ret;
 }
 
 static void __maybe_unused build_assertions(void)
