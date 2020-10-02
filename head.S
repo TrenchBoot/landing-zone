@@ -79,10 +79,10 @@ GLOBAL(_entry)
 	lidt	(%esp)
 	add	$8, %esp
 
-	/* Clear R_INIT and DIS_A20M.  */
+	/* Clear DIS_A20M. R_INIT is cleared by the kernel. */
 	mov	$IA32_VM_CR, %ecx
 	rdmsr
-	and	$~(VM_CR_DIS_A20M | VM_CR_R_INIT), %eax
+	and	$~(VM_CR_DIS_A20M), %eax
 	wrmsr
 
 	/* Relocate GDT.base, 64bit ljmp offset, and pagetables. */
