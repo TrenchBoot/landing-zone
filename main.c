@@ -542,11 +542,6 @@ static asm_return_t lz_multiboot2(struct tpm *tpm, struct lz_tag_boot_mb2 *lz_ta
 		reboot();
 	}
 
-	/* Xen sends self-NMI which would be blocked without stgi()
-	 * TODO: remove this after Xen is TrenchBoot-aware, or when there is a
-	 * switch for unaware OS in LZ boot protocol */
-	stgi();
-
 	boot_protocol = MULTIBOOT2;
 
 	return (asm_return_t){ kernel_entry, _p(lz_tag->mbi) };
