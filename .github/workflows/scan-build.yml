@@ -1,0 +1,29 @@
+name: scan-build
+
+on: [push, pull_request]
+
+jobs:
+  scan-build:
+
+    strategy:
+      matrix:
+        bits: [32, 64]
+        lto: [LTO=y, LTO=n]
+
+    runs-on: 'ubuntu-20.04'
+
+    steps:
+    - name: Install
+      run: |
+        sudo apt-get update -q
+        sudo apt-get install clang-tools-11
+
+    - uses: actions/checkout@v2
+
+    - name: Submodules
+      run: |
+        git submodule update --init tpmlib
+
+    - name: make
+      run: |
+        scan-build-11 --status-bugs -analyze-headers make 32=${{matrix.bits == 32 && 'y' || 'n'}} ${{matrix.lto}}
