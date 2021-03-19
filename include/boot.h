@@ -40,18 +40,38 @@
 #define __BOOT_H__
 
 extern const char _start[];
+extern volatile u32 lz_stack_canary;
 
 typedef struct __packed sl_header {
-	u16 lz_offet;
-	u16 lz_length;
+	u16 lz_entry_point;
+	u16 bootloader_data_offset;
+	u16 lz_info_offset;
 } sl_header_t;
 extern sl_header_t sl_header;
 
-typedef struct __packed lz_header {
+typedef struct __packed lz_info {
 	u8  uuid[16]; /* 78 f1 26 8e 04 92 11 e9  83 2a c8 5b 76 c4 cc 02 */
-	u32 slaunch_loader_size;
-	u32 zero_page_addr;
-	u8  msb_key_hash[20];
+	u32 version;
+	u16 msb_key_algo;
+	u8  msb_key_hash[];
+} lz_info_t;
+
+/* The same as TPML_DIGEST_VALUES but little endian, as event log expects it */
+typedef struct __packed ev_log_hash {
+	u32 count;
+	u16 sha1_id;
+	u8 sha1_hash[20];
+	u16 sha256_id;
+	u8 sha256_hash[32];
+} ev_log_hash_t;
+
+/* Keep in sync with head.S and sanity_check.sh */
+typedef struct __packed lz_header {
+	u32 boot_protocol;
+	u32 proto_struct;
+	u32 event_log_addr;
+	u32 event_log_size;
+	ev_log_hash_t lz_hashes;
 } lz_header_t;
 extern lz_header_t lz_header;
 

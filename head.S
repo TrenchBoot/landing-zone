@@ -20,6 +20,7 @@
  */
 
 #include <defs.h>
+#include <multiboot2.h>
 
 /* Selectors, CS and SS compatible with initial state after SKINIT */
 #define CS_SEL32         0x0008
@@ -31,15 +32,19 @@
 	.section .headers, "ax", @progbits
 
 GLOBAL(sl_header)
-	.word	_entry   /* SL header LZ offset to code start */
-	.word	_sl_end  /* SL header LZ measured length */
+	.word	_entry           /* SL header LZ offset to code start */
+	.word	bootloader_data  /* SL header LZ measured length */
+	.word	lz_info
 ENDDATA(sl_header)
 
-lz_first_stack:
-	.fill 0x1fc, 1   /* Enough space for now */
-	.align 0x10, 0	 /* Ensure proper alignment for 64bit */
+GLOBAL(lz_stack_canary)
+	.long STACK_CANARY
+ENDDATA(lz_stack_canary)
+lz_stack:
+	.fill 0x280, 1, 0xcc   /* Enough space for now */
+	.align 0x10, 0         /* Ensure proper alignment for 64bit */
 .L_stack_base:
-ENDDATA(lz_first_stack)
+ENDDATA(lz_stack)
 
 	.text
 	.code32
@@ -74,10 +79,10 @@ GLOBAL(_entry)
 	lidt	(%esp)
 	add	$8, %esp
 
-	/* Clear R_INIT and DIS_A20M.  */
+	/* Clear DIS_A20M. R_INIT is cleared by the kernel. */
 	mov	$IA32_VM_CR, %ecx
 	rdmsr
-	and	$~(VM_CR_DIS_A20M | VM_CR_R_INIT), %eax
+	and	$~(VM_CR_DIS_A20M), %eax
 	wrmsr
 
 	/* Relocate GDT.base, 64bit ljmp offset, and pagetables. */
@@ -130,6 +135,7 @@ GLOBAL(_entry)
 #endif	/* 64bit setup. */
 
 	call	lz_main
+
 	/*
 	 * lz_main() is magic.  It returns two pointers by register:
 	 *
@@ -174,9 +180,18 @@ GLOBAL(_entry)
 	push	$0
 	popf
 
-	/* Jump to entry target - EBX: startup_32 ESI: ZP base EDX: LZ base */
+	cmpl	$MULTIBOOT2, boot_protocol(%ebp)
+	je	multiboot2_kernel
+
+	/* Jump to entry target - EBX: startup_32, ESI: ZP base, EDX: LZ base */
 	mov	%ebp, %edx
 	jmp	*%ebx
+
+multiboot2_kernel:
+	/* Jump to entry target - EBX: MBI pointer, EAX: Multiboot2 magic number */
+	xchg	%esi, %ebx
+	mov	$MULTIBOOT2_BOOTLOADER_MAGIC, %eax
+	jmp *%esi
 ENDFUNC(_entry)
 
 	.data
@@ -254,15 +269,18 @@ l4_identmap: /* 1x L4 page, mapping the L3 page. 1 relocation. */
 ENDDATA(l4_identmap)
 #endif
 
-	.section .bootloader_data, "a", @progbits
 
-GLOBAL(lz_header) /* The LZ header setup by the bootloader */
-	.long	0x8e26f178 /* UUID */
+	.section .lz_info, "a", @progbits
+GLOBAL(lz_info)
+	.long	0x8e26f178	/* UUID */
 	.long	0xe9119204
 	.long	0x5bc82a83
 	.long	0x02ccc476
-	.long	0 /* Total size of Trenchboot Intermediate Loader */
-		  /* bzImage (padded out to next page) */
-	.long	0 /* Zero Page address */
-	.fill	0x14 /* MSB Key Hash */
-ENDDATA(lz_header)
+	.long	0			/* Version */
+	.word	0			/* MSB Key Algorithm */
+	.fill	0x14		/* MSB Key Hash */
+ENDDATA(lz_info)
+
+	.section .bootloader_data, "a", @progbits
+GLOBAL(bootloader_data)
+	.word	0			/* Dummy data to make sure that file isn't truncated */

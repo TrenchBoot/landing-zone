@@ -25,6 +25,11 @@
 #include <sha1sum.h>
 #include <sha256.h>
 #include <linux-bootparams.h>
+#include <event_log.h>
+#include <multiboot2.h>
+#include <tags.h>
+
+u32 boot_protocol;
 
 #ifdef DEBUG
 static void print_char(char c)
@@ -89,7 +94,7 @@ static inline int isprint(int c)
 	return c >= ' ' && c <= '~';
 }
 
-void hexdump(const void *memory, size_t length)
+static void hexdump(const void *memory, size_t length)
 {
 	int i;
 	u8 *line;
@@ -139,16 +144,16 @@ static void print_p(const void * unused) { }
 static void hexdump(const void *unused, size_t unused2) { }
 #endif
 
-static void extend_pcr(struct tpm *tpm, void *data, u32 size, u32 pcr)
+static void extend_pcr(struct tpm *tpm, void *data, u32 size, u32 pcr, char *ev)
 {
-	if (tpm->family == TPM12) {
-		u8 hash[SHA1_DIGEST_SIZE];
+	u8 hash[SHA1_DIGEST_SIZE];
+	sha1sum(hash, data, size);
+	print("shasum calculated:\n");
+	hexdump(hash, SHA1_DIGEST_SIZE);
+	tpm_extend_pcr(tpm, pcr, TPM_ALG_SHA1, hash);
 
-		sha1sum(hash, data, size);
-		print("shasum calculated:\n");
-		hexdump(hash, SHA1_DIGEST_SIZE);
-		tpm_extend_pcr(tpm, pcr, TPM_ALG_SHA1, hash);
-		print("PCR extended\n");
+	if (tpm->family == TPM12) {
+		log_event_tpm12(pcr, hash, ev);
 	} else if (tpm->family == TPM20) {
 		u8 sha256_hash[SHA256_DIGEST_SIZE];
 
@@ -156,8 +161,11 @@ static void extend_pcr(struct tpm *tpm, void *data, u32 size, u32 pcr)
 		print("shasum calculated:\n");
 		hexdump(sha256_hash, SHA256_DIGEST_SIZE);
 		tpm_extend_pcr(tpm, pcr, TPM_ALG_SHA256, &sha256_hash[0]);
-		print("PCR extended\n");
+
+		log_event_tpm20(pcr, hash, sha256_hash, ev);
 	}
+
+	print("PCR extended\n");
 }
 
 /*
@@ -213,26 +221,15 @@ typedef struct {
 	void *zero_page;       /* %edx */
 } asm_return_t;
 
-asm_return_t lz_main(void)
+static asm_return_t lz_linux(struct tpm *tpm, struct lz_tag_boot_linux *lz_tag)
 {
 	struct boot_params *bp;
 	struct kernel_info *ki;
 	struct mle_header *mle_header;
 	void *pm_kernel_entry;
-	struct tpm *tpm;
-
-	/*
-	 * Now in 64b mode, paging is setup. This is the launching point. We can
-	 * now do what we want. First order of business is to setup
-	 * DEV to cover memory from the start of bzImage to the end of the LZ
-	 * "kernel". At the end, trampoline to the PM entry point which will
-	 * include the Secure Launch stub.
-	 */
 
 	/* The Zero Page with the boot_params and legacy header */
-	bp = _p(lz_header.zero_page_addr);
-
-	pci_init();
+	bp = _p(lz_tag->zero_page);
 
 	print("\ncode32_start ");
 	print_p(_p(bp->code32_start));
@@ -259,6 +256,131 @@ asm_return_t lz_main(void)
 		reboot();
 	}
 
+	/* extend TB Loader code segment into PCR17 */
+	extend_pcr(tpm, _p(bp->code32_start), bp->syssize << 4, 17,
+	           "Measured Kernel into PCR17");
+
+	return (asm_return_t){ pm_kernel_entry, bp };
+}
+
+static asm_return_t lz_multiboot2(struct tpm *tpm, struct lz_tag_boot_mb2 *lz_tag)
+{
+	void *kernel_entry;
+	u32 kernel_size, mbi_len;
+	struct multiboot_tag *tag;
+	int i;
+
+	/* This is MBI header, not a tag, but their structures are similar enough.
+	 * Note that 'size' offsets are reversed in those two! */
+	tag = _p(lz_tag->mbi);
+
+	/* lz_tag->kernel_size is either passed size of kernel from bootloader
+	 * or 0 */
+	kernel_size = lz_tag->kernel_size;
+	kernel_entry = _p(lz_tag->kernel_entry);
+
+	/* Extend PCR18 with MBI structure's hash; this includes all cmdlines.
+	 * Use 'type' and not 'size', as their offsets are swapped in the header! */
+	mbi_len = tag->type;
+	extend_pcr(tpm, &tag, mbi_len, 18, "Measured MBI into PCR18");
+
+	tag++;
+
+	while (tag->type) {
+		if (kernel_entry && kernel_size)
+			break;
+
+		/* If the entry point wasn't passed by a bootloader, we can only assume
+		 * that it starts at the kernel base address (true at least for Xen) */
+		if (!kernel_entry && tag->type == MULTIBOOT_TAG_TYPE_LOAD_BASE_ADDR) {
+			struct multiboot_tag_load_base_addr *ba = (void *)tag;
+			kernel_entry = _p(ba->load_base_addr);
+			print("kernel_entry ");
+			print_p(kernel_entry);
+			print("\n");
+		}
+
+		/* This assumes that ELF has only one PROGBITS section, and that section
+		 * is the first one (i.e. it is loaded at load_base_addr). It is true
+		 * for Xen, but may not always the case.
+		 *
+		 * Also, GRUB2 creates this tag after all module tags, so separate loop
+		 * is needed for consistent order of PCR extension operations. */
+		if (!kernel_size && tag->type == MULTIBOOT_TAG_TYPE_ELF_SECTIONS) {
+			struct multiboot_tag_elf_sections *es_tag = (void *)tag;
+			for (i = 0; i < es_tag->num; i++) {
+				Elf32_Shdr *sh = (void *)&es_tag->sections[es_tag->entsize * i];
+				if (sh->sh_type == SHT_PROGBITS) {
+					kernel_size = sh->sh_size;
+					print("kernel_size ");
+					print_p(_p(kernel_size));
+					print("\n");
+					break;
+				}
+			}
+		}
+
+		tag = multiboot_next_tag(tag);
+	}
+
+	extend_pcr(tpm, kernel_entry, kernel_size, 17,
+	           "Measured Kernel into PCR17");
+
+	tag = _p(lz_tag->mbi);
+	tag++;
+
+	while (tag->type) {
+		if (tag->type == MULTIBOOT_TAG_TYPE_MODULE) {
+			struct multiboot_tag_module *mod = (void *)tag;
+			print("Module '");
+			print(mod->cmdline);
+			print("' [");
+			print_p(_p(mod->mod_start));
+			print_p(_p(mod->mod_end));
+			print("]\n");
+			extend_pcr(tpm, _p(mod->mod_start), mod->mod_end - mod->mod_start,
+			           17, mod->cmdline);
+		}
+
+		tag = multiboot_next_tag(tag);
+	}
+
+	/* Safety checks */
+	if (tag->size != 8
+	    || _p(multiboot_next_tag(tag)) > _p(lz_tag->mbi) + mbi_len) {
+		print("MBI safety checks failed\n");
+		reboot();
+	}
+
+	boot_protocol = MULTIBOOT2;
+
+	return (asm_return_t){ kernel_entry, _p(lz_tag->mbi) };
+}
+
+asm_return_t lz_main(void)
+{
+	asm_return_t ret;
+	struct tpm *tpm;
+	struct lz_tag_hdr *t = (struct lz_tag_hdr*) &bootloader_data;
+
+	/*
+	 * Now in 64b mode, paging is setup. This is the launching point. We can
+	 * now do what we want. First order of business is to setup
+	 * DEV to cover memory from the start of bzImage to the end of the LZ
+	 * "kernel". At the end, trampoline to the PM entry point which will
+	 * include the Secure Launch stub.
+	 */
+	pci_init();
+
+	if (t->type                              != LZ_TAG_TAGS_SIZE
+	    || t->len                            != sizeof(struct lz_tag_tags_size)
+	    || end_of_tags()                      > _p(_start + SLB_SIZE)
+	    || (t = next_of_type(t, LZ_TAG_END)) == NULL
+	    || _p(t) + t->len                    != end_of_tags()) {
+		print("Bad bootloader data format\n");
+		reboot();
+	}
+
 	/*
 	 * TODO Note these functions can fail but there is no clear way to
 	 * report the error unless SKINIT has some resource to do this. For
@@ -266,24 +388,58 @@ asm_return_t lz_main(void)
 	 */
 	tpm = enable_tpm();
 	tpm_request_locality(tpm, 2);
+	event_log_init(tpm);
 
-	/* extend TB Loader code segment into PCR17 */
-	extend_pcr(tpm, _p(bp->code32_start), bp->syssize << 4, 17);
+	/* Now that we have TPM and event log, measure bootloader data */
+	extend_pcr(tpm, &bootloader_data, bootloader_data.size, 18,
+	           "Measured bootloader data into PCR18");
+
+	t = next_of_class(&bootloader_data, LZ_TAG_BOOT_CLASS);
+	if (t == NULL || next_of_class(t, LZ_TAG_BOOT_CLASS) != NULL) {
+		print("No boot tag or multiple boot tags\n");
+		reboot();
+	}
+
+	switch(t->type) {
+		case LZ_TAG_BOOT_LINUX:
+			ret = lz_linux(tpm, (struct lz_tag_boot_linux *)t);
+			break;
+		case LZ_TAG_BOOT_MB2:
+			ret = lz_multiboot2(tpm, (struct lz_tag_boot_mb2 *)t);
+			break;
+		default:
+			print("Unknown kernel boot protocol\n");
+			reboot();
+	}
 
 	tpm_relinquish_locality(tpm);
 	free_tpm(tpm);
 
 	/* End of the line, off to the protected mode entry into the kernel */
 	print("pm_kernel_entry:\n");
-	hexdump(pm_kernel_entry, 0x100);
+	hexdump(ret.pm_kernel_entry, 0x100);
 	print("zero_page:\n");
-	hexdump(bp, 0x280);
+	hexdump(ret.zero_page, 0x280);
 	print("lz_base:\n");
 	hexdump(_start, 0x100);
+	print("bootloader_data:\n");
+	hexdump(&bootloader_data, bootloader_data.size);
+
+	t = next_of_type(&bootloader_data, LZ_TAG_EVENT_LOG);
+	if (t != NULL) {
+		print("TPM event log:\n");
+		hexdump(_p(((struct lz_tag_evtlog *)t)->address),
+		        ((struct lz_tag_evtlog *)t)->size);
+	}
+
+	if (lz_stack_canary != STACK_CANARY) {
+		print("Stack is too small, possible corruption\n");
+		reboot();
+	}
 
 	print("lz_main() is about to exit\n");
 
-	return (asm_return_t){ pm_kernel_entry, bp };
+	return ret;
 }
 
 static void __maybe_unused build_assertions(void)
