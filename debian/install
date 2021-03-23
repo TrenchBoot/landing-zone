@@ -1,0 +1,3 @@
+./lz_header.bin /boot/
+./util.sh /usr/share/doc/landing-zone/scripts
+./extend_all.sh /usr/share/doc/landing-zone/scripts

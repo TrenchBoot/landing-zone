@@ -4,6 +4,8 @@ stages:
 build_debug_disabled:
   stage: build
   image: gcc:9.3.0
+  except:
+    - debian
   # install bsdmainutils for hexdump
   before_script:
     - apt update && apt -y install bsdmainutils
@@ -15,6 +17,8 @@ build_debug_disabled:
 
 build_nixpkg_debug_disabled:
   stage: build
+  except:
+    - debian
   variables:
     NIXPKG: "landing-zone"
     LZ_COMMIT: "$CI_COMMIT_SHA"
@@ -27,6 +31,8 @@ build_nixpkg_debug_disabled:
 build_debug_enabled:
   stage: build
   image: gcc:9.3.0
+  except:
+    - debian
   # install bsdmainutils for hexdump
   before_script:
     - apt update && apt -y install bsdmainutils
@@ -38,6 +44,8 @@ build_debug_enabled:
 
 build_nixpkg_debug_enabled:
   stage: build
+  except:
+    - debian
   variables:
     NIXPKG: "landing-zone"
     LZ_COMMIT: "$CI_COMMIT_SHA"
@@ -46,3 +54,19 @@ build_nixpkg_debug_enabled:
     project: trenchboot1/3mdeb/nixos-trenchboot-configs
     branch: master
     strategy: depend
+
+build_debian_pkg:
+  image: debian:stable-20200414
+  stage: build
+  only:
+    - debian
+  before_script:
+    - apt update && apt -y install build-essential dh-make git
+    - git submodule init && git submodule update
+  script:
+    - dpkg-buildpackage
+    - mkdir artifacts && mv ../landing-zone_*_amd64.deb artifacts/
+    - dpkg -c artifacts/*.deb
+  artifacts:
+    paths:
+      - artifacts/*
