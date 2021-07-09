@@ -149,7 +149,7 @@ static inline void dev_write(u32 dev, u32 function, u32 index, u32 value)
 void dev_disable_sl(u32 dev)
 {
 	u32 dev_cr = dev_read(dev, DEV_CR, 0);
-	dev_write(dev, DEV_CR, 0, dev_cr & ~DEV_CR_SL_DEV_EN_MASK);
+	dev_write(dev, DEV_CR, 0, dev_cr & ~(DEV_CR_SL_DEV_EN_MASK));
 }
 
 static void send_command(iommu_command_t cmd)
