@@ -29,7 +29,7 @@ static void print_char(char c)
 	while ( !(inb(0x3f8 + 5) & 0x20) )
 		;
 
-	outb(0x3f8, c);
+	outb(c, 0x3f8);
 }
 
 static void print(char * txt) {
