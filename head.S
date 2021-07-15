@@ -268,24 +268,6 @@ l4_identmap: /* 1x L4 page, mapping the L3 page. 1 relocation. */
 ENDDATA(l4_identmap)
 #endif
 
-	.section .lz_info, "a", @progbits
-GLOBAL(lz_info)
-	.long	0x8e26f178	/* UUID */
-	.long	0xe9119204
-	.long	0x5bc82a83
-	.long	0x02ccc476
-	.long	0		/* Version */
-	.word	0		/* MSB Key Algorithm */
-	.fill	0x14		/* MSB Key Hash */
-
-	/* Hashes of LZ to be written to DRTM TPM event log */
-	.long	2		/* count */
-	.word	0x0004		/* sha1_id */
-	.fill   0x14		/* sha1_hash */
-	.word	0x000B		/* sha256_id */
-	.fill   0x20		/* sha256_hash */
-ENDDATA(lz_info)
-
 	.section .bootloader_data, "a", @progbits
 GLOBAL(bootloader_data)
 	.word	0			/* Dummy data to make sure that file isn't truncated */
