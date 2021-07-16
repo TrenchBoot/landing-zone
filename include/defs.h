@@ -53,6 +53,8 @@
 
 #define __packed        __attribute__ ((packed))
 #define __maybe_unused  __attribute__ ((unused))
+#define __used          __attribute__ ((used))
+#define __section(x)    __attribute__ ((section(x)))
 #define noinline        __attribute__ ((noinline))
 
 /* Due to the 64k total size limit, group all page aligned data together. */

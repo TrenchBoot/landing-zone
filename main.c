@@ -28,6 +28,18 @@
 #include <linux-bootparams.h>
 #include <event_log.h>
 
+lz_header_t __section(".bootloader_data") __used lz_header = {
+	.uuid = {
+		0x78, 0xf1, 0x26, 0x8e, 0x04, 0x92, 0x11, 0xe9,
+		0x83, 0x2a, 0xc8, 0x5b, 0x76, 0xc4, 0xcc, 0x02,
+	},
+	.lz_hashes = {
+		.count = 2,
+		.sha1_id = 0x4,
+		.sha256_id = 0xb,
+	},
+};
+
 #ifdef DEBUG
 static void print_char(char c)
 {
