@@ -23,10 +23,10 @@
  */
 #pragma GCC visibility push(hidden)
 
-#define LINUX_BOOT	0
-#define MULTIBOOT2	2
+#define LINUX_BOOT      0
+#define MULTIBOOT2      2
 
-#define STACK_CANARY	0xDEADBEEF
+#define STACK_CANARY    0xDEADBEEF
 
 #define PAGE_SHIFT      12
 #define PAGE_SIZE       (1 << PAGE_SHIFT)
@@ -36,6 +36,7 @@
 #define PAGE_PFN(p)     ((uintptr_t)(p) >> PAGE_SHIFT)
 
 #define GIGABYTE    0x40000000
+#define SLB_SIZE    0x10000
 
 #define _u(x) ((uintptr_t)(x))
 #define _p(x) ((void *)_u(x))

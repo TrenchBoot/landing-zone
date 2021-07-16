@@ -28,6 +28,9 @@
 #include <linux-bootparams.h>
 #include <event_log.h>
 #include <multiboot2.h>
+#include <tags.h>
+
+u32 boot_protocol;
 
 #ifdef DEBUG
 static void print_char(char c)
@@ -259,7 +262,7 @@ typedef struct {
 	void *zero_page;       /* %edx */
 } asm_return_t;
 
-static asm_return_t lz_linux(struct tpm *tpm)
+static asm_return_t lz_linux(struct tpm *tpm, struct lz_tag_boot_linux *lz_tag)
 {
 	struct boot_params *bp;
 	struct kernel_info *ki;
@@ -276,7 +279,7 @@ static asm_return_t lz_linux(struct tpm *tpm)
 	 */
 
 	/* The Zero Page with the boot_params and legacy header */
-	bp = _p(lz_header.proto_struct);
+	bp = _p(lz_tag->zero_page);
 
 #ifdef TEST_DMA
 	memset(_p(1), 0xcc, 0x20); //_p(0) gives a null-pointer error
@@ -450,22 +453,21 @@ static asm_return_t lz_linux(struct tpm *tpm)
 	return (asm_return_t){ pm_kernel_entry, bp };
 }
 
-static asm_return_t lz_multiboot2(struct tpm *tpm)
+static asm_return_t lz_multiboot2(struct tpm *tpm, struct lz_tag_boot_mb2 *lz_tag)
 {
-	void *kernel_entry = NULL;
+	void *kernel_entry;
 	u32 kernel_size, mbi_len;
 	struct multiboot_tag *tag;
 	int i;
 
 	/* This is MBI header, not a tag, but their structures are similar enough.
 	 * Note that 'size' offsets are reversed in those two! */
-	tag = _p(lz_header.proto_struct);
-	/* tag->size (aka. reserved field of header) is either passed size of kernel
-	 * from bootloader or 0 */
-	kernel_size = tag->size;
-	tag->size = 0;
+	tag = _p(lz_tag->mbi);
 
-	/* TODO: DEV or IOMMU, switch SLB protection off */
+	/* lz_tag->kernel_size is either passed size of kernel from bootloader
+	 * or 0 */
+	kernel_size = lz_tag->kernel_size;
+	kernel_entry = _p(lz_tag->kernel_entry);
 
 	/* Extend PCR18 with MBI structure's hash; this includes all cmdlines.
 	 * Use 'type' and not 'size', as their offsets are swapped in the header! */
@@ -475,7 +477,12 @@ static asm_return_t lz_multiboot2(struct tpm *tpm)
 	tag++;
 
 	while (tag->type) {
-		if (tag->type == MULTIBOOT_TAG_TYPE_LOAD_BASE_ADDR) {
+		if (kernel_entry && kernel_size)
+			break;
+
+		/* If the entry point wasn't passed by a bootloader, we can only assume
+		 * that it starts at the kernel base address (true at least for Xen) */
+		if (!kernel_entry && tag->type == MULTIBOOT_TAG_TYPE_LOAD_BASE_ADDR) {
 			struct multiboot_tag_load_base_addr *ba = (void *)tag;
 			kernel_entry = _p(ba->load_base_addr);
 			print("kernel_entry ");
@@ -489,7 +496,7 @@ static asm_return_t lz_multiboot2(struct tpm *tpm)
 		 *
 		 * Also, GRUB2 creates this tag after all module tags, so separate loop
 		 * is needed for consistent order of PCR extension operations. */
-		if (tag->type == MULTIBOOT_TAG_TYPE_ELF_SECTIONS) {
+		if (!kernel_size && tag->type == MULTIBOOT_TAG_TYPE_ELF_SECTIONS) {
 			struct multiboot_tag_elf_sections *es_tag = (void *)tag;
 			for (i = 0; i < es_tag->num; i++) {
 				Elf32_Shdr *sh = (void *)&es_tag->sections[es_tag->entsize * i];
@@ -503,16 +510,13 @@ static asm_return_t lz_multiboot2(struct tpm *tpm)
 			}
 		}
 
-		if (kernel_entry && kernel_size)
-			break;
-
 		tag = multiboot_next_tag(tag);
 	}
 
 	extend_pcr(tpm, kernel_entry, kernel_size, 17,
 	           "Measured Kernel into PCR17");
 
-	tag = _p(lz_header.proto_struct);
+	tag = _p(lz_tag->mbi);
 	tag++;
 
 	while (tag->type) {
@@ -533,7 +537,7 @@ static asm_return_t lz_multiboot2(struct tpm *tpm)
 
 	/* Safety checks */
 	if (tag->size != 8
-	    || _p(multiboot_next_tag(tag)) > _p(lz_header.proto_struct) + mbi_len) {
+	    || _p(multiboot_next_tag(tag)) > _p(lz_tag->mbi) + mbi_len) {
 		print("MBI safety checks failed\n");
 		reboot();
 	}
@@ -543,13 +547,16 @@ static asm_return_t lz_multiboot2(struct tpm *tpm)
 	 * switch for unaware OS in LZ boot protocol */
 	stgi();
 
-	return (asm_return_t){ kernel_entry, _p(lz_header.proto_struct) };
+	boot_protocol = MULTIBOOT2;
+
+	return (asm_return_t){ kernel_entry, _p(lz_tag->mbi) };
 }
 
 asm_return_t lz_main(void)
 {
 	asm_return_t ret;
 	struct tpm *tpm;
+	struct lz_tag_hdr *t = (struct lz_tag_hdr*) &bootloader_data;
 
 	/*
 	 * Now in 64b mode, paging is setup. This is the launching point. We can
@@ -560,6 +567,15 @@ asm_return_t lz_main(void)
 	 */
 	pci_init();
 
+	if (t->type                              != LZ_TAG_TAGS_SIZE
+	    || t->len                            != sizeof(struct lz_tag_tags_size)
+	    || end_of_tags()                      > _p(_start + SLB_SIZE)
+	    || (t = next_of_type(t, LZ_TAG_END)) == NULL
+	    || _p(t) + t->len                    != end_of_tags()) {
+		print("Bad bootloader data format\n");
+		reboot();
+	}
+
 	/*
 	 * TODO Note these functions can fail but there is no clear way to
 	 * report the error unless SKINIT has some resource to do this. For
@@ -569,12 +585,22 @@ asm_return_t lz_main(void)
 	tpm_request_locality(tpm, 2);
 	event_log_init(tpm);
 
-	switch(lz_header.boot_protocol) {
-		case LINUX_BOOT:
-			ret = lz_linux(tpm);
+	/* Now that we have TPM and event log, measure bootloader data */
+	extend_pcr(tpm, &bootloader_data, bootloader_data.size, 18,
+	           "Measured bootloader data into PCR18");
+
+	t = next_of_class(&bootloader_data, LZ_TAG_BOOT_CLASS);
+	if (t == NULL || next_of_class(t, LZ_TAG_BOOT_CLASS) != NULL) {
+		print("No boot tag or multiple boot tags\n");
+		reboot();
+	}
+
+	switch(t->type) {
+		case LZ_TAG_BOOT_LINUX:
+			ret = lz_linux(tpm, (struct lz_tag_boot_linux *)t);
 			break;
-		case MULTIBOOT2:
-			ret = lz_multiboot2(tpm);
+		case LZ_TAG_BOOT_MB2:
+			ret = lz_multiboot2(tpm, (struct lz_tag_boot_mb2 *)t);
 			break;
 		default:
 			print("Unknown kernel boot protocol\n");
@@ -591,8 +617,15 @@ asm_return_t lz_main(void)
 	hexdump(ret.zero_page, 0x280);
 	print("lz_base:\n");
 	hexdump(_start, 0x100);
-	print("TPM event log:\n");
-	hexdump(_p(lz_header.event_log_addr), lz_header.event_log_size);
+	print("bootloader_data:\n");
+	hexdump(&bootloader_data, bootloader_data.size);
+
+	t = next_of_type(&bootloader_data, LZ_TAG_EVENT_LOG);
+	if (t != NULL) {
+		print("TPM event log:\n");
+		hexdump(_p(((struct lz_tag_evtlog *)t)->address),
+		        ((struct lz_tag_evtlog *)t)->size);
+	}
 
 	if (lz_stack_canary != STACK_CANARY) {
 		print("Stack is too small, possible corruption\n");
