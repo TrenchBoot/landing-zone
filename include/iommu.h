@@ -17,6 +17,12 @@
 #ifndef __IOMMU_H__
 #define __IOMMU_H__
 
+typedef struct dte {
+	u64 a, b, c, d;
+} iommu_dte_t;
+
+extern iommu_dte_t device_table[2 * PAGE_SIZE / sizeof(iommu_dte_t)];
+
 typedef struct __packed {
 	u32 u0;
 	union {
@@ -27,7 +33,6 @@ typedef struct __packed {
 	u32 u3;
 } iommu_command_t;
 
-extern char device_table[2 * PAGE_SIZE];
 extern char event_log[PAGE_SIZE];
 extern iommu_command_t command_buf[PAGE_SIZE / sizeof(iommu_command_t)];
 
