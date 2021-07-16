@@ -26,7 +26,7 @@ iommu_dte_t device_table[2 * PAGE_SIZE / sizeof(iommu_dte_t)] __page_data = {
 		.a = IOMMU_DTE_Q0_V + IOMMU_DTE_Q0_TV,
 	},
 };
-iommu_command_t command_buf[PAGE_SIZE / sizeof(iommu_command_t)] __page_data;
+iommu_command_t command_buf[2] __aligned(sizeof(iommu_command_t));
 char event_log[PAGE_SIZE] __page_data;
 
 #ifdef DEBUG
@@ -163,7 +163,7 @@ static void send_command(u64 *mmio_base, iommu_command_t cmd)
 	u32 cmd_ptr = mmio_base[IOMMU_MMIO_COMMAND_BUF_TAIL] >> 4;
 	command_buf[cmd_ptr++] = cmd;
 	smp_wmb();
-	mmio_base[IOMMU_MMIO_COMMAND_BUF_TAIL] = (cmd_ptr << 4) & 0xfff;
+	mmio_base[IOMMU_MMIO_COMMAND_BUF_TAIL] = (cmd_ptr << 4);
 }
 
 u32 iommu_load_device_table(u32 cap, volatile u64 *completed)
@@ -205,10 +205,29 @@ u32 iommu_load_device_table(u32 cap, volatile u64 *completed)
 	print_u64(mmio_base[IOMMU_MMIO_DEVICE_TABLE_BA]);
 	print("IOMMU_MMIO_DEVICE_TABLE_BA\n");
 
-	/* Address and size of Command Buffer, reset head and tail registers */
-	mmio_base[IOMMU_MMIO_COMMAND_BUF_BA] = (u64)_u(command_buf) | (0x8ULL << 56);
-	mmio_base[IOMMU_MMIO_COMMAND_BUF_HEAD] = 0;
-	mmio_base[IOMMU_MMIO_COMMAND_BUF_TAIL] = 0;
+	/*
+	 * !!! WARNING - HERE BE DRAGONS !!!
+	 *
+	 * Address and size of Command Buffer, reset head and tail registers.
+	 *
+	 * The IOMMU command buffer is required to be an aligned power of two,
+	 * with a minimum size of 4k.  We only need to send a handful of
+	 * commands, and really don't have 4k worth of space to spare.
+	 * Furthermore, the buffer is only ever read by the IOMMU.
+	 *
+	 * Therefore, we have a small array of command buffer entries, aligned
+	 * on the size of one entry.  We program the IOMMU to say that the
+	 * command buffer is 8k long (to cover the case that the array crosses
+	 * a page boundary), and move both the head and tail pointers forwards
+	 * to the start of the buffer.
+	 *
+	 * This will malfunction if more commands are sent than fit in
+	 * command_buf[] to begin with, but we do save almost 4k of space,
+	 * 1/16th of that available to us.
+	 */
+	mmio_base[IOMMU_MMIO_COMMAND_BUF_BA] = (u64)(_u(command_buf) & ~0xfff)| (0x9ULL << 56);
+	mmio_base[IOMMU_MMIO_COMMAND_BUF_HEAD] =
+		mmio_base[IOMMU_MMIO_COMMAND_BUF_TAIL] = _u(command_buf) & 0xff0;
 
 	print_u64(mmio_base[IOMMU_MMIO_COMMAND_BUF_BA]);
 	print("IOMMU_MMIO_COMMAND_BUF_BA\n");
