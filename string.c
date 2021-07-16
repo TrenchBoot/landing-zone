@@ -20,3 +20,13 @@ void *(memset)(void *dst, int c, size_t n)
 
 	return dst;
 }
+
+size_t (strlen)(const char *s)
+{
+	size_t c = 0;
+
+	while (*s++)
+		c++;
+
+	return c;
+}

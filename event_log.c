@@ -36,15 +36,6 @@ static int log_write(const void *data, unsigned size)
 	return 0;
 }
 
-static int strlen(const char *p)
-{
-	int count = 0;
-
-	while (*p++) count++;
-
-	return count;
-}
-
 #define EV_NO_ACTION    0x3
 /* TODO: are these types defined anywhere? */
 #define EV_TYPE_SKINIT  0x600
