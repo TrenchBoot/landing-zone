@@ -56,6 +56,7 @@
 
 #endif
 
+#define __aligned(x)    __attribute__ ((aligned(x)))
 #define __packed        __attribute__ ((packed))
 #define __maybe_unused  __attribute__ ((unused))
 #define noinline        __attribute__ ((noinline))
