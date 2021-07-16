@@ -21,8 +21,6 @@
 #include <iommu.h>
 #include <iommu_defs.h>
 
-static u64 *mmio_base;
-
 #ifdef DEBUG
 static void print_char(char c)
 {
@@ -152,16 +150,17 @@ void dev_disable_sl(u32 dev)
 	dev_write(dev, DEV_CR, 0, dev_cr & ~(DEV_CR_SL_DEV_EN_MASK));
 }
 
-static void send_command(iommu_command_t cmd)
+static void send_command(u64 *mmio_base, iommu_command_t cmd)
 {
 	u32 cmd_ptr = mmio_base[IOMMU_MMIO_COMMAND_BUF_TAIL] >> 4;
 	command_buf[cmd_ptr++] = cmd;
-	asm volatile("wbinvd; sfence" ::: "memory");
+	smp_wmb();
 	mmio_base[IOMMU_MMIO_COMMAND_BUF_TAIL] = (cmd_ptr << 4) & 0xfff;
 }
 
 u32 iommu_load_device_table(u32 cap, volatile u64 *completed)
 {
+	u64 *mmio_base;
 	u32 low, hi;
 	iommu_command_t cmd = {0};
 
@@ -182,7 +181,7 @@ u32 iommu_load_device_table(u32 cap, volatile u64 *completed)
 	mmio_base = _p((u64)hi << 32 | (low & 0xffffc000));
 
 	print("IOMMU MMIO Base Address = ");
-	print_u64((u64)hi << 32 | (low & 0xffffc000));
+	print_u64((u64)_u(mmio_base));
 	print("\n");
 
 	print_u64(mmio_base[IOMMU_MMIO_STATUS_REGISTER]);
@@ -190,7 +189,7 @@ u32 iommu_load_device_table(u32 cap, volatile u64 *completed)
 
 	/* Disable IOMMU and all its features */
 	mmio_base[IOMMU_MMIO_CONTROL_REGISTER] &= ~IOMMU_CR_ENABLE_ALL_MASK;
-	barrier();
+	smp_wmb();
 
 	/* Address and size of Device Table (bits 8:0 = 0 -> 4KB; 1 -> 8KB ...) */
 	mmio_base[IOMMU_MMIO_DEVICE_TABLE_BA] = (u64)_u(device_table) | 1;
@@ -216,9 +215,9 @@ u32 iommu_load_device_table(u32 cap, volatile u64 *completed)
 
 	/* Clear EventLogInt set by IOMMU not being able to read command buffer */
 	mmio_base[IOMMU_MMIO_STATUS_REGISTER] &= ~2;
-	barrier();
+	smp_wmb();
 	mmio_base[IOMMU_MMIO_CONTROL_REGISTER] |= IOMMU_CR_CmdBufEn | IOMMU_CR_EventLogEn;
-	asm volatile("wbinvd; sfence" ::: "memory");
+	smp_wmb();
 
 	mmio_base[IOMMU_MMIO_CONTROL_REGISTER] |= IOMMU_CR_IommuEn;
 
@@ -228,7 +227,7 @@ u32 iommu_load_device_table(u32 cap, volatile u64 *completed)
 	if (mmio_base[IOMMU_MMIO_EXTENDED_FEATURE] & IOMMU_EF_IASup) {
 		print("INVALIDATE_IOMMU_ALL\n");
 		cmd.opcode = INVALIDATE_IOMMU_ALL;
-		send_command(cmd);
+		send_command(mmio_base, cmd);
 	} /* TODO: else? */
 
 	print_u64(mmio_base[IOMMU_MMIO_EXTENDED_FEATURE]);
@@ -243,7 +242,7 @@ u32 iommu_load_device_table(u32 cap, volatile u64 *completed)
 
 	cmd.opcode = COMPLETION_WAIT;
 	cmd.u2 = 0x656e6f64;	/* "done" */
-	send_command(cmd);
+	send_command(mmio_base, cmd);
 
 	print_u64(mmio_base[IOMMU_MMIO_STATUS_REGISTER]);
 	print("IOMMU_MMIO_STATUS_REGISTER\n");

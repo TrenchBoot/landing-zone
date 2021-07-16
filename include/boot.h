@@ -75,6 +75,10 @@ extern lz_header_t lz_header;
 #define wmb()		asm volatile("sfence" : : : "memory")
 #define barrier()	asm volatile("" : : : "memory")
 
+#define smp_rmb()	barrier()
+#define smp_wmb()	barrier()
+#define smp_mb()	mb()
+
 /* MMIO Functions */
 static inline u8 ioread8(void *addr)
 {
