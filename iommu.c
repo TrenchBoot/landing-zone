@@ -21,6 +21,14 @@
 #include <iommu.h>
 #include <iommu_defs.h>
 
+iommu_dte_t device_table[2 * PAGE_SIZE / sizeof(iommu_dte_t)] __page_data = {
+	[0 ... ARRAY_SIZE(device_table) - 1 ] = {
+		.a = IOMMU_DTE_Q0_V + IOMMU_DTE_Q0_TV,
+	},
+};
+iommu_command_t command_buf[PAGE_SIZE / sizeof(iommu_command_t)] __page_data;
+char event_log[PAGE_SIZE] __page_data;
+
 #ifdef DEBUG
 static void print_char(char c)
 {
