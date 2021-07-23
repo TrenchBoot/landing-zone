@@ -4,12 +4,28 @@
 #include <defs.h>
 #include <types.h>
 
+/* extensible setup indirect data node */
+struct setup_indirect {
+	u32 type;
+	u32 reserved;  /* Reserved, must be set to zero. */
+	u64 len;
+	u64 addr;
+} __packed;
+
+/* extensible setup data list node */
+struct setup_data {
+	u64 next;
+	u32 type;
+	u32 len;
+	struct setup_indirect indirect;
+} __packed;
+
 #define LZ_TAG_CLASS_MASK	0xF0
 
 /* Tags with no particular class */
 #define LZ_TAG_NO_CLASS		0x00
 #define LZ_TAG_END		0x00
-#define LZ_TAG_UNAWARE_OS	0x01
+#define LZ_TAG_SETUP_INDIRECT	0x01
 #define LZ_TAG_TAGS_SIZE	0x0F	/* Always first */
 
 /* Tags specifying kernel type */
@@ -54,6 +70,11 @@ struct lz_tag_hash {
 	struct lz_tag_hdr hdr;
 	u16 algo_id;
 	u8 digest[];
+} __packed;
+
+struct lz_tag_setup_indirect {
+	struct lz_tag_hdr hdr;
+	struct setup_data data;
 } __packed;
 
 extern struct lz_tag_tags_size bootloader_data;
