@@ -32,6 +32,22 @@ static const struct test {
         "The quick brown fox jumps over the lazy dog",
         HASH(2fd4e1c6, 7a2d28fc, ed849ee1, bb76e739, 1b93eb12),
     },
+    {
+        "                                        ", /* 40 */
+        HASH(108a95c4, 27e99c98, ffec5980, f74ae18d, d7e6a6f1),
+    },
+    {
+        "                                                  ", /* 50 */
+        HASH(346729de, baf8c9e1, 042ae6e3, 82768fc2, c172c351),
+    },
+    {
+        "                                                            ", /* 60 */
+        HASH(3c82ec78, da97a701, 6b999152, 468f3488, 16c55e28),
+    },
+    {
+        "                                                                      ", /* 70 */
+        HASH(6f2a4b80, 7e4fd5ac, cdae059f, 9ec553b1, a6872a27),
+    },
 };
 
 static void dump_hash(const u32 *hash)
