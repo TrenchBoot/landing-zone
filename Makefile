@@ -74,7 +74,7 @@ tpmlib/%.o: tpmlib/%.c Makefile
 
 # Helpers for building and running tests on the current host
 test-%: test-%.c Makefile
-	$(CC) $(filter-out -ffreestanding -march%,$(CFLAGS)) $< -o $@
+	$(CC) $(filter-out -ffreestanding -march%,$(CFLAGS)) $(if $(COV),-fprofile-arcs -ftest-coverage) $< -o $@
 
 .PHONY: run-test-%
 .SECONDARY:
@@ -92,7 +92,7 @@ cscope:
 
 .PHONY: clean
 clean:
-	rm -f lz_header.bin lz_header $(TESTS) *.d *.o tpmlib/*.d tpmlib/*.o cscope.*
+	rm -f lz_header.bin lz_header $(TESTS) *.d *.o *.gcov *.gcda *.gcno tpmlib/*.d tpmlib/*.o cscope.*
 
 # Compiler-generated header dependencies.  Should be last.
 -include $(OBJ:.o=.d) $(TESTS:=.d)
