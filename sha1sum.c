@@ -36,7 +36,12 @@ rol( u32 x, int n)
 
 typedef struct {
 	u64		count;
-	u32		h0, h1, h2, h3, h4;
+	union {
+		struct {
+			u32	h0, h1, h2, h3, h4;
+		};
+		u32 h[5];
+	};
 	unsigned char	buf[64];
 } SHA1_CONTEXT;
 
@@ -187,11 +192,8 @@ sha1_final(SHA1_CONTEXT *hd, u8 hash[SHA1_DIGEST_SIZE])
     sha1_transform(hd, hd->buf);
 
     u32 *p = (void *)hash;
-    *p++ = be32_to_cpu(hd->h0);
-    *p++ = be32_to_cpu(hd->h1);
-    *p++ = be32_to_cpu(hd->h2);
-    *p++ = be32_to_cpu(hd->h3);
-    *p++ = be32_to_cpu(hd->h4);
+    for (int i = 0; i < 5; ++i)
+	    p[i] = be32_to_cpu(hd->h[i]);
 }
 
 void sha1sum(u8 hash[static SHA1_DIGEST_SIZE], const void *ptr, u32 len)
