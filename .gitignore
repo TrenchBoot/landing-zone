@@ -2,6 +2,8 @@ lz_header.bin
 lz_header
 *.d
 *.o
+*.gcda
+*.gcno
 cscope.*
 test-*
 !test-*.c
