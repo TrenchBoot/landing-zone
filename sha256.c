@@ -23,7 +23,7 @@
 
 struct sha256_state {
 	u32 state[SHA256_DIGEST_SIZE / 4];
-	u64 count;
+	u32 count;
 	u8 buf[SHA256_BLOCK_SIZE];
 };
 
@@ -178,7 +178,7 @@ static void sha256_final(struct sha256_state *sctx, void *_dst)
 
 	/* Append the 64 bit count */
 	count = (void *)&sctx->buf[56];
-	*count = cpu_to_be64(sctx->count << 3);
+	*count = cpu_to_be64((u64)sctx->count << 3);
 	sha256_transform(sctx->state, sctx->buf);
 
 	/* Store state in digest */
