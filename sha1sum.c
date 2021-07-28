@@ -35,7 +35,7 @@ rol( u32 x, int n)
 }
 
 typedef struct {
-	u64		count;
+	u32		count;
 	union {
 		struct {
 			u32	h0, h1, h2, h3, h4;
@@ -188,7 +188,7 @@ sha1_final(SHA1_CONTEXT *hd, u8 hash[SHA1_DIGEST_SIZE])
 
     /* append the 64 bit count */
     u64 *count = (void *)&hd->buf[56];
-    *count = cpu_to_be64(hd->count << 3);
+    *count = cpu_to_be64((u64)hd->count << 3);
     sha1_transform(hd, hd->buf);
 
     u32 *p = (void *)hash;
