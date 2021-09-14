@@ -150,7 +150,7 @@ static tpm20_spec_id_ev_t tpm20_id_struct = {
 	.sizes.digest_sizes[1].id = TPM_ALG_SHA256,
 	.sizes.digest_sizes[1].size = 32,
 	.vendor_info_size = sizeof(txt_event_log_pointer2_1_element),
-	.el.first_record_offset = sizeof(tpm20_spec_id_ev_t) + sizeof(tpm12_event_t),
+	.el.first_record_offset = 0,
 	.el.next_record_offset = sizeof(tpm20_spec_id_ev_t) + sizeof(tpm12_event_t)
 };
 
