@@ -19,7 +19,6 @@
 #include <types.h>
 #include <pci.h>
 #include <iommu.h>
-#include <iommu_defs.h>
 
 iommu_dte_t device_table[2 * PAGE_SIZE / sizeof(iommu_dte_t)] __page_data = {
 	[0 ... ARRAY_SIZE(device_table) - 1 ] = {
