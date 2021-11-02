@@ -130,6 +130,15 @@
 
 #define DEV_CR_SL_DEV_EN_MASK	1<<5
 
+/* Family 17h and newer */
+#define MCH_PCI_BUS		0x0
+#define MCH_PCI_DEVICE		0x18
+#define MCH_PCI_FUNCTION	0x0
+
+#define MEMPROT_CR		0x384
+
+#define MEMPROT_EN		1<<0
+
 typedef struct dte {
 	u64 a, b, c, d;
 } iommu_dte_t;
@@ -149,10 +158,9 @@ typedef struct __packed {
 extern char event_log[PAGE_SIZE];
 extern iommu_command_t command_buf[2];
 
+void disable_memory_protection(void);
+
 u32 iommu_locate(void);
 u32 iommu_load_device_table(u32 cap, volatile u64 *completed);
-
-u32 dev_locate(void);
-void dev_disable_sl(u32 dev_cap);
 
 #endif /* __IOMMU_H__ */

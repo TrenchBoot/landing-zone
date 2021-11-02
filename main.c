@@ -262,7 +262,7 @@ static void do_dma(void)
 
 static void iommu_setup(void)
 {
-	u32 iommu_cap, dev_cap;
+	u32 iommu_cap;
 	volatile u64 iommu_done __attribute__ ((aligned (8))) = 0;
 
 #ifdef TEST_DMA
@@ -312,17 +312,8 @@ static void iommu_setup(void)
 		print("Couldn't set up IOMMU, DMA attacks possible!\n");
 	} else {
 		/* Turn off SLB protection, try again */
-		dev_cap = dev_locate();
 		print("Disabling SLB protection\n");
-		if (dev_cap) {
-			/* Older families with remains of DEV */
-			dev_disable_sl(dev_cap);
-		} else {
-			/* Fam 17h uses different DMA protection control register */
-			u32 sldev;
-			pci_read(0, 0, PCI_DEVFN(0x18, 0), 0x384, 4, &sldev);
-			pci_write(0, 0, PCI_DEVFN(0x18, 0), 0x384, 4, sldev & ~1);
-		}
+		disable_memory_protection();
 
 #ifdef TEST_DMA
 		memset(_p(1), 0xcc, 0x20);
