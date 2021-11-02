@@ -153,6 +153,6 @@ u32 iommu_locate(void);
 u32 iommu_load_device_table(u32 cap, volatile u64 *completed);
 
 u32 dev_locate(void);
-void dev_disable_sl(u32 dev);
+void dev_disable_sl(u32 dev_cap);
 
 #endif /* __IOMMU_H__ */

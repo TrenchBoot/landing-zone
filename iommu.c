@@ -119,42 +119,42 @@ u32 dev_locate(void)
 	               PCI_DEVFN(DEV_PCI_DEVICE, DEV_PCI_FUNCTION));
 }
 
-static inline u32 dev_read(u32 dev, u32 function, u32 index)
+static inline u32 dev_read(u32 dev_cap, u32 function, u32 index)
 {
         u32 value;
 
         pci_write(0, DEV_PCI_BUS,
 			PCI_DEVFN(DEV_PCI_DEVICE,DEV_PCI_FUNCTION),
-			dev + DEV_OP_OFFSET,
+			dev_cap + DEV_OP_OFFSET,
 			4,
 			(u32)(((function & 0xff) << 8) + (index & 0xff)) );
 
         pci_read(0, DEV_PCI_BUS,
 			PCI_DEVFN(DEV_PCI_DEVICE,DEV_PCI_FUNCTION),
-			dev + DEV_DATA_OFFSET,
+			dev_cap + DEV_DATA_OFFSET,
 			4, &value);
 
 	return value;
 }
 
-static inline void dev_write(u32 dev, u32 function, u32 index, u32 value)
+static inline void dev_write(u32 dev_cap, u32 function, u32 index, u32 value)
 {
         pci_write(0, DEV_PCI_BUS,
 			PCI_DEVFN(DEV_PCI_DEVICE,DEV_PCI_FUNCTION),
-			dev + DEV_OP_OFFSET,
+			dev_cap + DEV_OP_OFFSET,
 			4,
 			(u32)(((function & 0xff) << 8) + (index & 0xff)) );
 
         pci_write(0, DEV_PCI_BUS,
 			PCI_DEVFN(DEV_PCI_DEVICE,DEV_PCI_FUNCTION),
-			dev + DEV_DATA_OFFSET,
+			dev_cap + DEV_DATA_OFFSET,
 			4, value);
 }
 
-void dev_disable_sl(u32 dev)
+void dev_disable_sl(u32 dev_cap)
 {
-	u32 dev_cr = dev_read(dev, DEV_CR, 0);
-	dev_write(dev, DEV_CR, 0, dev_cr & ~(DEV_CR_SL_DEV_EN_MASK));
+	u32 dev_cr = dev_read(dev_cap, DEV_CR, 0);
+	dev_write(dev_cap, DEV_CR, 0, dev_cr & ~(DEV_CR_SL_DEV_EN_MASK));
 }
 
 static void send_command(u64 *mmio_base, iommu_command_t cmd)
