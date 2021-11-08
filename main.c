@@ -260,36 +260,10 @@ static void do_dma(void)
 }
 #endif
 
-/*
- * Function return ABI magic:
- *
- * By returning a simple object of two pointers, the SYSV ABI splits it across
- * %rax and %rdx rather than spilling it to the stack.  This is far more
- * convenient for our asm caller to deal with.
- */
-typedef struct {
-	void *pm_kernel_entry; /* %eax */
-	void *zero_page;       /* %edx */
-} asm_return_t;
-
-static asm_return_t lz_linux(struct tpm *tpm, struct lz_tag_boot_linux *lz_tag)
+static void iommu_setup(void)
 {
-	struct boot_params *bp;
-	struct kernel_info *ki;
-	struct mle_header *mle_header;
-	void *pm_kernel_entry;
-	u32 iommu_cap, dev;
+	u32 iommu_cap;
 	volatile u64 iommu_done __attribute__ ((aligned (8))) = 0;
-
-	/*
-	 * Now in 64b mode, paging is setup. This is the launching point. We can
-	 * now do what we want. First order of business is to setup IOMMU to cover
-	 * all memory. At the end, trampoline to the PM entry point which will
-	 * include the Secure Launch stub.
-	 */
-
-	/* The Zero Page with the boot_params and legacy header */
-	bp = _p(lz_tag->zero_page);
 
 #ifdef TEST_DMA
 	memset(_p(1), 0xcc, 0x20); //_p(0) gives a null-pointer error
@@ -336,22 +310,10 @@ static asm_return_t lz_linux(struct tpm *tpm, struct lz_tag_boot_linux *lz_tag)
 			print("IOMMU disabled by a firmware, please check your settings\n");
 
 		print("Couldn't set up IOMMU, DMA attacks possible!\n");
-
-		/* Tell TB stub that there is no IOMMU */
-		bp->tb_dev_map = 0;
 	} else {
 		/* Turn off SLB protection, try again */
-		dev = dev_locate();
 		print("Disabling SLB protection\n");
-		if (dev) {
-			/* Older families with remains of DEV */
-			dev_disable_sl(dev);
-		} else {
-			/* Fam 17h uses different DMA protection control register */
-			u32 sldev;
-			pci_read(0, 0, PCI_DEVFN(0x18, 0), 0x384, 4, &sldev);
-			pci_write(0, 0, PCI_DEVFN(0x18, 0), 0x384, 4, sldev & ~1);
-		}
+		disable_memory_protection();
 
 #ifdef TEST_DMA
 		memset(_p(1), 0xcc, 0x20);
@@ -383,9 +345,6 @@ static asm_return_t lz_linux(struct tpm *tpm, struct lz_tag_boot_linux *lz_tag)
 			print(".");
 		}
 		print("\nIOMMU set\n");
-
-		/* Set the Device Table address for the TB stub to use */
-		bp->tb_dev_map = _u(device_table);
 	}
 
 #ifdef TEST_DMA
@@ -411,6 +370,39 @@ static asm_return_t lz_linux(struct tpm *tpm, struct lz_tag_boot_linux *lz_tag)
 	print("and again2\n");
 	hexdump(_p(0), 0x30);
 #endif
+}
+
+/*
+ * Function return ABI magic:
+ *
+ * By returning a simple object of two pointers, the SYSV ABI splits it across
+ * %rax and %rdx rather than spilling it to the stack.  This is far more
+ * convenient for our asm caller to deal with.
+ */
+typedef struct {
+	void *pm_kernel_entry; /* %eax */
+	void *zero_page;       /* %edx */
+} asm_return_t;
+
+static asm_return_t lz_linux(struct tpm *tpm, struct lz_tag_boot_linux *lz_tag)
+{
+	struct boot_params *bp;
+	struct kernel_info *ki;
+	struct mle_header *mle_header;
+	void *pm_kernel_entry;
+
+	/*
+	 * Now in 64b mode, paging is setup. This is the launching point. We can
+	 * now do what we want. First order of business is to setup IOMMU to cover
+	 * all memory. At the end, trampoline to the PM entry point which will
+	 * include the Secure Launch stub.
+	 */
+
+	/* The Zero Page with the boot_params and legacy header */
+	bp = _p(lz_tag->zero_page);
+
+	/* Disable memory protection and setup IOMMU */
+	iommu_setup();
 
 	print("\ncode32_start ");
 	print_p(_p(bp->code32_start));
@@ -478,6 +470,9 @@ static asm_return_t lz_multiboot2(struct tpm *tpm, struct lz_tag_boot_mb2 *lz_ta
 	 * or 0 */
 	kernel_size = lz_tag->kernel_size;
 	kernel_entry = _p(lz_tag->kernel_entry);
+
+	/* Disable memory protection and setup IOMMU */
+	iommu_setup();
 
 	/* Extend PCR18 with MBI structure's hash; this includes all cmdlines.
 	 * Use 'type' and not 'size', as their offsets are swapped in the header! */
